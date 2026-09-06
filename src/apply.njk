@@ -4,23 +4,60 @@ title: Apply
 ---
 <section class="page-simple">
   <h1>Become a Member</h1>
-  <p>Fill in your details below to apply. Once your application and payment are confirmed, you'll receive an email to set up your login and digital membership card.</p>
+  <p>Regular Annual Membership: ZMW 750 for Heads of Missions / Honorary Consuls / Holders of a Diplomatic ID. ZMW 1000 for Family (includes Spouse/Partner). Payment details will be sent once your application is received.</p>
 
   <form class="app-form" id="apply-form">
-    <label for="full_name">Full name</label>
-    <input type="text" id="full_name" name="full_name" required>
+    <label for="surname">Surname</label>
+    <input type="text" id="surname" name="surname" required>
+
+    <label for="first_name">First Name</label>
+    <input type="text" id="first_name" name="first_name" required>
 
     <label for="nationality">Nationality</label>
     <input type="text" id="nationality" name="nationality" required>
 
-    <label for="email">Email</label>
-    <input type="email" id="email" name="email" required>
+    <label for="diplomatic_mission">Diplomatic Mission</label>
+    <input type="text" id="diplomatic_mission" name="diplomatic_mission" required>
 
-    <label for="phone">Phone</label>
+    <label for="diplomatic_title">Diplomatic Title</label>
+    <input type="text" id="diplomatic_title" name="diplomatic_title" required>
+
+    <label for="phone">Contact Number</label>
     <input type="tel" id="phone" name="phone" required>
 
-    <label for="photo">Photo (for your membership card)</label>
+    <label for="email">Email Address</label>
+    <input type="email" id="email" name="email" required>
+
+    <label for="photo">Submit your headshot photo</label>
     <input type="file" id="photo" name="photo" accept="image/*" required>
+
+    <label for="has_spouse">Would you like to apply for your spouse too?</label>
+    <select id="has_spouse" name="has_spouse">
+      <option value="no">No</option>
+      <option value="yes">Yes</option>
+    </select>
+
+    <div id="spouse-fields" style="display:none;">
+      <h2>Spouse Details</h2>
+
+      <label for="spouse_surname">Spouse Surname</label>
+      <input type="text" id="spouse_surname" name="spouse_surname">
+
+      <label for="spouse_first_name">Spouse First Name</label>
+      <input type="text" id="spouse_first_name" name="spouse_first_name">
+
+      <label for="spouse_nationality">Spouse Nationality</label>
+      <input type="text" id="spouse_nationality" name="spouse_nationality">
+
+      <label for="spouse_phone">Spouse Contact Number</label>
+      <input type="tel" id="spouse_phone" name="spouse_phone">
+
+      <label for="spouse_email">Spouse Email Address</label>
+      <input type="email" id="spouse_email" name="spouse_email">
+
+      <label for="spouse_photo">Spouse Headshot Photo</label>
+      <input type="file" id="spouse_photo" name="spouse_photo" accept="image/*">
+    </div>
 
     <button type="submit" id="apply-submit">Submit Application</button>
   </form>
@@ -29,6 +66,27 @@ title: Apply
 </section>
 
 <script>
+  const hasSpouseSelect = document.getElementById('has_spouse');
+  const spouseFields = document.getElementById('spouse-fields');
+  const spouseInputs = spouseFields.querySelectorAll('input');
+
+  hasSpouseSelect.addEventListener('change', () => {
+    const showSpouse = hasSpouseSelect.value === 'yes';
+    spouseFields.style.display = showSpouse ? 'block' : 'none';
+    spouseInputs.forEach(input => {
+      if (input.type !== 'file') input.required = showSpouse;
+    });
+  });
+
+  async function uploadPhoto(file) {
+    const ext = file.name.split('.').pop();
+    const path = `${crypto.randomUUID()}.${ext}`;
+    const { error } = await sb.storage.from('member-photos').upload(path, file);
+    if (error) throw error;
+    const { data } = sb.storage.from('member-photos').getPublicUrl(path);
+    return data.publicUrl;
+  }
+
   const form = document.getElementById('apply-form');
   const statusEl = document.getElementById('apply-status');
   const submitBtn = document.getElementById('apply-submit');
@@ -39,44 +97,47 @@ title: Apply
     statusEl.className = 'form-status';
     statusEl.textContent = 'Submitting…';
 
-    const full_name = document.getElementById('full_name').value.trim();
-    const nationality = document.getElementById('nationality').value.trim();
-    const email = document.getElementById('email').value.trim();
-    const phone = document.getElementById('phone').value.trim();
-    const photoFile = document.getElementById('photo').files[0];
+    const val = id => document.getElementById(id).value.trim();
 
     try {
-      // Upload the photo first
-      const ext = photoFile.name.split('.').pop();
-      const path = `${crypto.randomUUID()}.${ext}`;
+      const photo_url = await uploadPhoto(document.getElementById('photo').files[0]);
 
-      const { error: uploadError } = await sb.storage
-        .from('member-photos')
-        .upload(path, photoFile);
-
-      if (uploadError) throw uploadError;
-
-      const { data: publicUrlData } = sb.storage
-        .from('member-photos')
-        .getPublicUrl(path);
-
-      const photo_url = publicUrlData.publicUrl;
-
-      // Insert the application row
-      const { error: insertError } = await sb.from('members').insert({
-        full_name,
-        nationality,
-        email,
-        phone,
+      const { data: inserted, error: insertError } = await sb.from('members').insert({
+        surname: val('surname'),
+        first_name: val('first_name'),
+        nationality: val('nationality'),
+        diplomatic_mission: val('diplomatic_mission'),
+        diplomatic_title: val('diplomatic_title'),
+        phone: val('phone'),
+        email: val('email'),
         photo_url,
         status: 'pending',
-      });
+      }).select().single();
 
       if (insertError) throw insertError;
+
+      if (hasSpouseSelect.value === 'yes') {
+        const spousePhotoFile = document.getElementById('spouse_photo').files[0];
+        const spouse_photo_url = spousePhotoFile ? await uploadPhoto(spousePhotoFile) : null;
+
+        const { error: spouseError } = await sb.from('members').insert({
+          surname: val('spouse_surname'),
+          first_name: val('spouse_first_name'),
+          nationality: val('spouse_nationality'),
+          phone: val('spouse_phone'),
+          email: val('spouse_email'),
+          photo_url: spouse_photo_url,
+          status: 'pending',
+          spouse_of: inserted.id,
+        });
+
+        if (spouseError) throw spouseError;
+      }
 
       statusEl.className = 'form-status success';
       statusEl.textContent = "Thank you! Your application has been received. We'll be in touch about payment and next steps shortly.";
       form.reset();
+      spouseFields.style.display = 'none';
     } catch (err) {
       statusEl.className = 'form-status error';
       statusEl.textContent = 'Something went wrong: ' + err.message;

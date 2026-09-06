@@ -21,7 +21,7 @@ title: My Membership Card
 
     const { data, error } = await sb
       .from('members')
-      .select('full_name, nationality, photo_url, status, membership_expires, verify_token')
+      .select('first_name, surname, nationality, photo_url, status, membership_expires, verify_token')
       .eq('auth_user_id', session.user.id)
       .single();
 
@@ -30,6 +30,7 @@ title: My Membership Card
       return;
     }
 
+    const fullName = data.first_name + ' ' + data.surname;
     const verifyUrl = window.location.origin + '/verify/?token=' + data.verify_token;
     const qrImg = 'https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=' + encodeURIComponent(verifyUrl);
     const statusLabel = data.status === 'active' ? '✓ Active Member' : data.status.charAt(0).toUpperCase() + data.status.slice(1);
@@ -37,9 +38,9 @@ title: My Membership Card
 
     gate.innerHTML = `
       <div class="member-card">
-        <img class="member-card-photo" src="${data.photo_url}" alt="${data.full_name}">
+        <img class="member-card-photo" src="${data.photo_url}" alt="${fullName}">
         <div class="member-card-body">
-          <p class="member-card-name">${data.full_name}</p>
+          <p class="member-card-name">${fullName}</p>
           <p class="member-card-nationality">${data.nationality || ''}</p>
           <p class="${statusClass}">${statusLabel}</p>
           ${data.membership_expires ? `<p class="member-card-expiry">Valid until ${data.membership_expires}</p>` : ''}

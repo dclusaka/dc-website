@@ -16,7 +16,7 @@ title: Admin
     const gate = document.getElementById('admin-gate');
     const { data, error } = await sb
       .from('members')
-      .select('id, full_name, nationality, email, phone, status, membership_started, membership_expires')
+      .select('id, surname, first_name, nationality, diplomatic_mission, diplomatic_title, email, phone, status, membership_expires, spouse_of')
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -26,8 +26,10 @@ title: Admin
 
     const rows = data.map(m => `
       <tr data-id="${m.id}">
-        <td>${m.full_name}</td>
+        <td>${m.first_name} ${m.surname}${m.spouse_of ? ' <span class="spouse-tag">(spouse)</span>' : ''}</td>
         <td>${m.nationality || ''}</td>
+        <td>${m.diplomatic_mission || ''}</td>
+        <td>${m.diplomatic_title || ''}</td>
         <td>${m.email}</td>
         <td>${m.phone || ''}</td>
         <td>
@@ -42,7 +44,7 @@ title: Admin
     gate.innerHTML = `
       <table class="member-table">
         <thead>
-          <tr><th>Name</th><th>Nationality</th><th>Email</th><th>Phone</th><th>Status</th><th>Expires</th></tr>
+          <tr><th>Name</th><th>Nationality</th><th>Mission</th><th>Title</th><th>Email</th><th>Phone</th><th>Status</th><th>Expires</th></tr>
         </thead>
         <tbody>${rows}</tbody>
       </table>
