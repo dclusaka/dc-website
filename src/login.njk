@@ -1,0 +1,45 @@
+---
+layout: layouts/base.njk
+title: Login
+---
+<section class="page-simple">
+  <h1>Member Login</h1>
+  <p>Enter the email you applied with, and we'll send you a login link — no password needed.</p>
+
+  <form class="login-form" id="login-form">
+    <label for="email">Email</label>
+    <input type="email" id="email" name="email" required>
+    <button type="submit" id="login-submit">Send login link</button>
+  </form>
+
+  <p class="form-status" id="login-status"></p>
+</section>
+
+<script>
+  const form = document.getElementById('login-form');
+  const statusEl = document.getElementById('login-status');
+  const submitBtn = document.getElementById('login-submit');
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    submitBtn.disabled = true;
+    statusEl.className = 'form-status';
+    statusEl.textContent = 'Sending…';
+
+    const email = document.getElementById('email').value.trim();
+
+    const { error } = await sb.auth.signInWithOtp({
+      email,
+      options: { emailRedirectTo: window.location.origin + '/members/' },
+    });
+
+    if (error) {
+      statusEl.className = 'form-status error';
+      statusEl.textContent = 'Something went wrong: ' + error.message;
+      submitBtn.disabled = false;
+    } else {
+      statusEl.className = 'form-status success';
+      statusEl.textContent = 'Check your email for a login link.';
+    }
+  });
+</script>

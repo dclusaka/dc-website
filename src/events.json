@@ -1,0 +1,26 @@
+{
+  "upcoming": [
+    {
+      "name": "Annual Gala",
+      "when": "Date and time TBD",
+      "where": "Location TBD"
+    }
+  ],
+  "past": [
+    { "name": "Artificial Intelligence & Human Apathy", "when": "11 Jun 2026, 5:30–7:30 pm", "where": "37D Art Gallery, 37D Middleway, Lusaka, Zambia" },
+    { "name": "Lodge Outing", "when": "07 Jun 2026, 9:00 am–11:30 pm", "where": "Royal Amahle Lodge, Mwembeshi, Zambia", "note": "Exclusive bush day experience. Gate opens at 8:00!" },
+    { "name": "Japanese Tea Ceremony", "when": "29 Oct 2025, 4:30–6:30 pm", "where": "The Space, Agora Village, Thabo Mbeki Rd", "note": "With instructor Chiharu Iseri" },
+    { "name": "Luna Art Gallery Evening", "when": "25 Jun 2025, 5:30–7:30 pm", "where": "29 Mutende Rd, Lusaka, Zambia", "note": "Featuring Zambian artist Mulenga Chafilwa" },
+    { "name": "DC Happy Hour", "when": "13 Mar 2025, 5:30–7:30 pm", "where": "Neelkanth Sarovar Premiere Hotel, Manda Hill Rd", "note": "Drinks & hors-d'oeuvres." },
+    { "name": "World Family Fair 2024", "when": "19 May 2024, 12:00–6:00 pm", "where": "Italian School of Lusaka, Lubu Rd", "note": "A celebration of international cultures for families." },
+    { "name": "Masquerade Charity Ball", "when": "17 Feb 2024, 7:00–11:00 pm", "where": "InterContinental Lusaka by IHG", "note": "Fundraising for the Kayula Childhood Cancer Foundation." },
+    { "name": "World Family Fair 2023", "when": "25 Jun 2023, 12:00–6:00 pm", "where": "Italian School of Lusaka, Lubu Rd" },
+    { "name": "New Year Lunch", "when": "10 Dec 2022, 12:30–3:30 pm", "where": "InterContinental Lusaka by IHG" },
+    { "name": "Screening of World Cup Game", "when": "24 Nov 2022, 6:00–10:00 pm", "where": "Brazilian Residence, 512 Mzee Kenyatta Ln" },
+    { "name": "Charity Ball", "when": "28 May 2022, 7:00–11:00 pm", "where": "Brazilian Residence, 512 Mzee Kenyatta Ln" },
+    { "name": "World Family Fair 2022", "when": "22 May 2022, 12:00–6:00 pm", "where": "Italian School of Lusaka, Lubu Rd" },
+    { "name": "Visit the WFP Hydroponics Project", "when": "20 Apr 2022, 9:00 am–5:00 pm", "where": "Zambia" },
+    { "name": "Arts Conference by Prof. D'Orazio", "when": "14 Apr 2022, 6:00–9:00 pm", "where": "The Quorum, Kabulonga & Martin Luther King Rd" },
+    { "name": "Arts and Sports", "when": "18 Feb 2022, 6:00–8:00 pm", "where": "The Quorum, Kabulonga & Martin Luther King Rd", "note": "A lecture by Professor Costantino D'Orazio." }
+  ]
+}

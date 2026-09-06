@@ -1,0 +1,52 @@
+---
+layout: layouts/base.njk
+title: My Membership Card
+---
+<section class="page-simple">
+  <h1>My Membership Card</h1>
+  <div id="card-gate">
+    <p>Checking your login…</p>
+  </div>
+</section>
+
+<script>
+  (async () => {
+    const gate = document.getElementById('card-gate');
+    const { data: { session } } = await sb.auth.getSession();
+
+    if (!session) {
+      gate.innerHTML = '<p>Please <a href="/login/">log in</a> to see your card.</p>';
+      return;
+    }
+
+    const { data, error } = await sb
+      .from('members')
+      .select('full_name, nationality, photo_url, status, membership_expires, verify_token')
+      .eq('auth_user_id', session.user.id)
+      .single();
+
+    if (error || !data) {
+      gate.innerHTML = '<p class="form-status error">Could not load your card.</p>';
+      return;
+    }
+
+    const verifyUrl = window.location.origin + '/verify/?token=' + data.verify_token;
+    const qrImg = 'https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=' + encodeURIComponent(verifyUrl);
+    const statusLabel = data.status === 'active' ? '✓ Active Member' : data.status.charAt(0).toUpperCase() + data.status.slice(1);
+    const statusClass = data.status === 'active' ? 'card-status-active' : 'card-status-inactive';
+
+    gate.innerHTML = `
+      <div class="member-card">
+        <img class="member-card-photo" src="${data.photo_url}" alt="${data.full_name}">
+        <div class="member-card-body">
+          <p class="member-card-name">${data.full_name}</p>
+          <p class="member-card-nationality">${data.nationality || ''}</p>
+          <p class="${statusClass}">${statusLabel}</p>
+          ${data.membership_expires ? `<p class="member-card-expiry">Valid until ${data.membership_expires}</p>` : ''}
+          <img class="member-card-qr" src="${qrImg}" alt="Verification QR code">
+          <p class="member-card-hint">Show this page or QR code to receive member discounts.</p>
+        </div>
+      </div>
+    `;
+  })();
+</script>

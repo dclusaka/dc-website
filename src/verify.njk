@@ -1,0 +1,42 @@
+---
+layout: layouts/base.njk
+title: Verify Membership
+---
+<section class="page-simple">
+  <h1>Membership Verification</h1>
+  <div id="verify-result">
+    <p>Checking…</p>
+  </div>
+</section>
+
+<script>
+  (async () => {
+    const resultEl = document.getElementById('verify-result');
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get('token');
+
+    if (!token) {
+      resultEl.innerHTML = '<p>No membership token provided.</p>';
+      return;
+    }
+
+    const { data, error } = await sb.rpc('verify_member', { token });
+
+    if (error || !data || data.length === 0) {
+      resultEl.innerHTML = '<p class="verify-invalid">✗ Not a recognized membership card.</p>';
+      return;
+    }
+
+    const m = data[0];
+    const isActive = m.status === 'active';
+
+    resultEl.innerHTML = `
+      <div class="verify-card ${isActive ? 'verify-active' : 'verify-inactive'}">
+        <img src="${m.photo_url}" alt="${m.full_name}">
+        <p class="verify-name">${m.full_name}</p>
+        <p class="verify-status">${isActive ? '✓ Active Member' : '✗ ' + m.status.charAt(0).toUpperCase() + m.status.slice(1)}</p>
+        ${m.membership_expires ? `<p class="verify-expiry">Valid until ${m.membership_expires}</p>` : ''}
+      </div>
+    `;
+  })();
+</script>

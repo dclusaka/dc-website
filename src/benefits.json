@@ -1,0 +1,110 @@
+[
+  {
+    "name": "Neelkanth Sarovar Hotel",
+    "details": [
+      "Restaurant — 50% discount when 2 people dine, 33% with 3, 25% with 4, and 20% with 5 or more at a table",
+      "Beverages — 20% discount",
+      "Bakery (Sweet Talk Cafe) — 20% discount",
+      "Accommodation — 15% discount on best available rates for members and their guests",
+      "Spa & Beauty Salon — 20% discount"
+    ],
+    "notes": "Not valid for corporate bookings. Conditions apply. Membership benefits will not apply during promotions, special events, and festivals.",
+    "website": "https://www.sarovarhotels.com/neelkanth-sarovar-premiere-lusaka/"
+  },
+  {
+    "name": "Pamodzi (Hyatt) Hotel",
+    "details": [
+      "Restaurant — 15% discount for 2–4 guests, 20% discount for 5–10 guests",
+      "Bakery & Confectionary — 15% discount",
+      "Accommodation — 15% discount on best available rates for members and their guests",
+      "Spa & Beauty Salon — 20% discount"
+    ],
+    "notes": "Not valid for corporate bookings. Conditions apply. Membership benefits will not apply during promotions, special events, and festivals, and cannot be combined with any other special discount.",
+    "website": "https://www.hyatt.com/stay/en-US/lunrl-the-pamodzi-hotel"
+  },
+  {
+    "name": "Onoma Mediterranean Restaurant",
+    "details": [
+      "15% discount (for the cardholder) any day except Fridays — reservation required",
+      "10% discount (for the cardholder) on Fridays for Greek Nights — reservation required"
+    ],
+    "website": "https://www.onoma.co.zm/"
+  },
+  {
+    "name": "The Gathering",
+    "details": ["10% discount (for the cardholder) Monday to Thursday — reservation required"],
+    "website": "https://www.instagram.com/thegathering_lsk/"
+  },
+  {
+    "name": "Musubi Japanese Restaurant",
+    "details": ["15% discount (for the table) any day except Friday & Saturday after 18:00 — reservation required"],
+    "website": "https://www.musubi-jp.net/"
+  },
+  {
+    "name": "Braii House Backyard",
+    "details": [
+      "10–15% discount (for the table) on selected food menu items",
+      "20% discount for outside catering services"
+    ],
+    "website": "https://braai-house.kyte.site/en"
+  },
+  {
+    "name": "Bellini",
+    "details": ["15% discount (for the cardholder) any day except Saturday"],
+    "website": "https://thisisbellini.com/"
+  },
+  {
+    "name": "Pizza da Francesco",
+    "details": ["TBA"],
+    "website": "https://francescospizzas.com/"
+  },
+  {
+    "name": "Wiseapple Coffee Shop",
+    "details": ["10% discount (for the cardholder)"],
+    "website": "https://www.facebook.com/wiseapplecoffeeshop/"
+  },
+  {
+    "name": "Orange Tree Restaurant",
+    "details": ["10% discount (for the cardholder)"],
+    "website": "https://www.instagram.com/orangetreepublusaka/"
+  },
+  {
+    "name": "Majoru Butchery",
+    "details": ["10% discount (for the cardholder)"],
+    "website": "https://www.instagram.com/majoru_buchery/"
+  },
+  {
+    "name": "Nikki Beauty Studio",
+    "details": ["10% discount (for the cardholder)"],
+    "website": "https://nikkibeautystudio.com"
+  },
+  {
+    "name": "Orange Blossom Bakery",
+    "details": ["10% discount (for the cardholder)"],
+    "website": "https://www.instagram.com/orangeblossombakery_"
+  },
+  {
+    "name": "Shardonnay Wine & Gin Bar",
+    "details": [
+      "10% discount (for the cardholder), plus additional discounts based on total spend",
+      "Accumulative spend K5,000–K10,000 earns 5% off your next bill",
+      "Accumulative spend K10,000–K15,000 earns 10% off your next bill",
+      "Accumulative spend K15,000–K20,000 earns 15% off your next bill"
+    ],
+    "notes": "Terms and conditions apply.",
+    "website": "https://shardonnay.wine/"
+  },
+  {
+    "name": "Aurum Stories",
+    "details": [
+      "5% discount (for the cardholder) on most items",
+      "10% discount (for the cardholder) on selected items"
+    ],
+    "website": "https://aurumstories.com/"
+  },
+  {
+    "name": "Bodega Cocktail Bar",
+    "details": ["15% discount (for the cardholder) at both locations"],
+    "website": "https://www.bodegalsk.com/"
+  }
+]

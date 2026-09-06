@@ -1,0 +1,86 @@
+---
+layout: layouts/base.njk
+title: Apply
+---
+<section class="page-simple">
+  <h1>Become a Member</h1>
+  <p>Fill in your details below to apply. Once your application and payment are confirmed, you'll receive an email to set up your login and digital membership card.</p>
+
+  <form class="app-form" id="apply-form">
+    <label for="full_name">Full name</label>
+    <input type="text" id="full_name" name="full_name" required>
+
+    <label for="nationality">Nationality</label>
+    <input type="text" id="nationality" name="nationality" required>
+
+    <label for="email">Email</label>
+    <input type="email" id="email" name="email" required>
+
+    <label for="phone">Phone</label>
+    <input type="tel" id="phone" name="phone" required>
+
+    <label for="photo">Photo (for your membership card)</label>
+    <input type="file" id="photo" name="photo" accept="image/*" required>
+
+    <button type="submit" id="apply-submit">Submit Application</button>
+  </form>
+
+  <p class="form-status" id="apply-status"></p>
+</section>
+
+<script>
+  const form = document.getElementById('apply-form');
+  const statusEl = document.getElementById('apply-status');
+  const submitBtn = document.getElementById('apply-submit');
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    submitBtn.disabled = true;
+    statusEl.className = 'form-status';
+    statusEl.textContent = 'Submitting…';
+
+    const full_name = document.getElementById('full_name').value.trim();
+    const nationality = document.getElementById('nationality').value.trim();
+    const email = document.getElementById('email').value.trim();
+    const phone = document.getElementById('phone').value.trim();
+    const photoFile = document.getElementById('photo').files[0];
+
+    try {
+      // Upload the photo first
+      const ext = photoFile.name.split('.').pop();
+      const path = `${crypto.randomUUID()}.${ext}`;
+
+      const { error: uploadError } = await sb.storage
+        .from('member-photos')
+        .upload(path, photoFile);
+
+      if (uploadError) throw uploadError;
+
+      const { data: publicUrlData } = sb.storage
+        .from('member-photos')
+        .getPublicUrl(path);
+
+      const photo_url = publicUrlData.publicUrl;
+
+      // Insert the application row
+      const { error: insertError } = await sb.from('members').insert({
+        full_name,
+        nationality,
+        email,
+        phone,
+        photo_url,
+        status: 'pending',
+      });
+
+      if (insertError) throw insertError;
+
+      statusEl.className = 'form-status success';
+      statusEl.textContent = "Thank you! Your application has been received. We'll be in touch about payment and next steps shortly.";
+      form.reset();
+    } catch (err) {
+      statusEl.className = 'form-status error';
+      statusEl.textContent = 'Something went wrong: ' + err.message;
+      submitBtn.disabled = false;
+    }
+  });
+</script>
