@@ -1,0 +1,25 @@
+---
+layout: layouts/base.njk
+title: Member Benefits
+---
+<section class="page-simple page-wide">
+  <h1>Member Benefits</h1>
+  <p class="benefits-intro">Show your membership card at any of the partners below to receive these discounts.</p>
+
+  <div class="benefits-list">
+    {% for place in benefits %}
+    <article class="benefit-card">
+      <h2>{{ place.name }}</h2>
+      <ul>
+        {% for line in place.details %}
+        <li>{{ line }}</li>
+        {% endfor %}
+      </ul>
+      {% if place.notes %}<p class="benefit-notes">{{ place.notes }}</p>{% endif %}
+      {% if place.website %}<p class="benefit-link"><a href="{{ place.website }}">{{ place.website }}</a></p>{% endif %}
+    </article>
+    {% endfor %}
+  </div>
+
+  <a class="button-primary" href="/apply/">Become a Member</a>
+</section>
