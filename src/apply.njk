@@ -13,9 +13,6 @@ title: Apply
     <label for="first_name">First Name</label>
     <input type="text" id="first_name" name="first_name" required>
 
-    <label for="nationality">Nationality</label>
-    <input type="text" id="nationality" name="nationality" required>
-
     <label for="diplomatic_mission">Diplomatic Mission</label>
     <input type="text" id="diplomatic_mission" name="diplomatic_mission" required>
 
@@ -31,11 +28,11 @@ title: Apply
     <label for="photo">Submit your headshot photo</label>
     <input type="file" id="photo" name="photo" accept="image/*" required>
 
-    <label for="has_spouse">Would you like to apply for your spouse too?</label>
-    <select id="has_spouse" name="has_spouse">
-      <option value="no">No</option>
-      <option value="yes">Yes</option>
-    </select>
+    <fieldset class="radio-group">
+      <legend>Would you like to apply for your spouse too?</legend>
+      <label class="radio-label"><input type="radio" name="has_spouse" value="no" checked> No</label>
+      <label class="radio-label"><input type="radio" name="has_spouse" value="yes"> Yes</label>
+    </fieldset>
 
     <div id="spouse-fields" style="display:none;">
       <h2>Spouse Details</h2>
@@ -45,9 +42,6 @@ title: Apply
 
       <label for="spouse_first_name">Spouse First Name</label>
       <input type="text" id="spouse_first_name" name="spouse_first_name">
-
-      <label for="spouse_nationality">Spouse Nationality</label>
-      <input type="text" id="spouse_nationality" name="spouse_nationality">
 
       <label for="spouse_phone">Spouse Contact Number</label>
       <input type="tel" id="spouse_phone" name="spouse_phone">
@@ -66,15 +60,21 @@ title: Apply
 </section>
 
 <script>
-  const hasSpouseSelect = document.getElementById('has_spouse');
+  const spouseRadios = document.querySelectorAll('input[name="has_spouse"]');
   const spouseFields = document.getElementById('spouse-fields');
   const spouseInputs = spouseFields.querySelectorAll('input');
 
-  hasSpouseSelect.addEventListener('change', () => {
-    const showSpouse = hasSpouseSelect.value === 'yes';
-    spouseFields.style.display = showSpouse ? 'block' : 'none';
-    spouseInputs.forEach(input => {
-      if (input.type !== 'file') input.required = showSpouse;
+  function getHasSpouseValue() {
+    return document.querySelector('input[name="has_spouse"]:checked').value;
+  }
+
+  spouseRadios.forEach(radio => {
+    radio.addEventListener('change', () => {
+      const showSpouse = getHasSpouseValue() === 'yes';
+      spouseFields.style.display = showSpouse ? 'block' : 'none';
+      spouseInputs.forEach(input => {
+        if (input.type !== 'file') input.required = showSpouse;
+      });
     });
   });
 
@@ -105,7 +105,6 @@ title: Apply
       const { data: inserted, error: insertError } = await sb.from('members').insert({
         surname: val('surname'),
         first_name: val('first_name'),
-        nationality: val('nationality'),
         diplomatic_mission: val('diplomatic_mission'),
         diplomatic_title: val('diplomatic_title'),
         phone: val('phone'),
@@ -116,14 +115,13 @@ title: Apply
 
       if (insertError) throw insertError;
 
-      if (hasSpouseSelect.value === 'yes') {
+      if (getHasSpouseValue() === 'yes') {
         const spousePhotoFile = document.getElementById('spouse_photo').files[0];
         const spouse_photo_url = spousePhotoFile ? await uploadPhoto(spousePhotoFile) : null;
 
         const { error: spouseError } = await sb.from('members').insert({
           surname: val('spouse_surname'),
           first_name: val('spouse_first_name'),
-          nationality: val('spouse_nationality'),
           phone: val('spouse_phone'),
           email: val('spouse_email'),
           photo_url: spouse_photo_url,

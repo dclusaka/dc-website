@@ -32,12 +32,12 @@ title: Current Members
     }
 
     const rows = data.map(m =>
-      `<tr><td>${m.full_name}</td><td>${m.nationality || ''}</td></tr>`
+      `<tr><td>${m.full_name}</td></tr>`
     ).join('');
 
     gate.innerHTML = `
       <table class="member-table">
-        <thead><tr><th>Name</th><th>Nationality</th></tr></thead>
+        <thead><tr><th>Name</th></tr></thead>
         <tbody>${rows}</tbody>
       </table>
     `;
