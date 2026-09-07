@@ -1,0 +1,233 @@
+---
+layout: layouts/base.njk
+title: Admin
+---
+<section class="page-simple page-wide">
+  <h1>Admin — All Members</h1>
+  <div id="admin-gate">
+    <p>Checking your login…</p>
+  </div>
+</section>
+
+<section class="page-simple page-wide" id="admin-events-section" style="display:none;">
+  <h1>Manage Events</h1>
+
+  <form class="app-form" id="event-form">
+    <input type="hidden" id="event_id" value="">
+    <label for="event_title">Title</label>
+    <input type="text" id="event_title" required>
+
+    <label for="event_date">Date (leave blank for "TBD")</label>
+    <input type="date" id="event_date">
+
+    <label for="event_time_label">Time (e.g. "5:30 pm – 7:30 pm")</label>
+    <input type="text" id="event_time_label">
+
+    <label for="event_location">Location</label>
+    <input type="text" id="event_location">
+
+    <label for="event_description">Description</label>
+    <textarea id="event_description" rows="4"></textarea>
+
+    <button type="submit" id="event-submit">Add Event</button>
+    <button type="button" id="event-cancel-edit" style="display:none;">Cancel Edit</button>
+  </form>
+
+  <p class="form-status" id="event-status"></p>
+
+  <div id="admin-events-list"></div>
+</section>
+
+<script>
+  const STATUS_OPTIONS = ['pending', 'active', 'expired', 'rejected'];
+
+  async function loadAdminTable() {
+    const gate = document.getElementById('admin-gate');
+    const { data, error } = await sb
+      .from('members')
+      .select('id, surname, first_name, diplomatic_mission, diplomatic_title, email, phone, status, membership_expires, spouse_of')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      gate.innerHTML = '<p class="form-status error">Could not load members: ' + error.message + '</p>';
+      return;
+    }
+
+    const rows = data.map(m => `
+      <tr data-id="${m.id}">
+        <td>${m.first_name} ${m.surname}${m.spouse_of ? ' <span class="spouse-tag">(spouse)</span>' : ''}</td>
+        <td>${m.diplomatic_mission || ''}</td>
+        <td>${m.diplomatic_title || ''}</td>
+        <td>${m.email}</td>
+        <td>${m.phone || ''}</td>
+        <td>
+          <select class="status-select">
+            ${STATUS_OPTIONS.map(s => `<option value="${s}" ${s === m.status ? 'selected' : ''}>${s}</option>`).join('')}
+          </select>
+        </td>
+        <td>${m.membership_expires || '—'}</td>
+      </tr>
+    `).join('');
+
+    gate.innerHTML = `
+      <table class="member-table">
+        <thead>
+          <tr><th>Name</th><th>Mission</th><th>Title</th><th>Email</th><th>Phone</th><th>Status</th><th>Expires</th></tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+    `;
+
+    document.querySelectorAll('.status-select').forEach(select => {
+      select.addEventListener('change', async (e) => {
+        const row = e.target.closest('tr');
+        const id = row.dataset.id;
+        const newStatus = e.target.value;
+        const update = { status: newStatus };
+
+        if (newStatus === 'active') {
+          const today = new Date();
+          const expires = new Date(today);
+          expires.setFullYear(expires.getFullYear() + 1);
+          update.membership_started = today.toISOString().slice(0, 10);
+          update.membership_expires = expires.toISOString().slice(0, 10);
+        }
+
+        const { error } = await sb.from('members').update(update).eq('id', id);
+        if (error) {
+          alert('Could not update status: ' + error.message);
+        } else {
+          loadAdminTable();
+        }
+      });
+    });
+  }
+
+  // ---- Event management ----
+  const eventForm = document.getElementById('event-form');
+  const eventIdField = document.getElementById('event_id');
+  const eventSubmitBtn = document.getElementById('event-submit');
+  const eventCancelBtn = document.getElementById('event-cancel-edit');
+  const eventStatusEl = document.getElementById('event-status');
+  const eventsListEl = document.getElementById('admin-events-list');
+
+  function resetEventForm() {
+    eventForm.reset();
+    eventIdField.value = '';
+    eventSubmitBtn.textContent = 'Add Event';
+    eventCancelBtn.style.display = 'none';
+  }
+
+  eventCancelBtn.addEventListener('click', resetEventForm);
+
+  async function loadEventsAdminList() {
+    const { data, error } = await sb
+      .from('events')
+      .select('id, title, event_date, time_label, location, description')
+      .order('event_date', { ascending: false, nullsFirst: true });
+
+    if (error) {
+      eventsListEl.innerHTML = '<p class="form-status error">Could not load events.</p>';
+      return;
+    }
+
+    const rows = data.map(e => `
+      <tr data-id="${e.id}">
+        <td>${e.title}</td>
+        <td>${e.event_date || 'TBD'}</td>
+        <td>${e.location || ''}</td>
+        <td>
+          <button type="button" class="event-edit-btn">Edit</button>
+          <button type="button" class="event-delete-btn">Delete</button>
+        </td>
+      </tr>
+    `).join('');
+
+    eventsListEl.innerHTML = `
+      <table class="member-table">
+        <thead><tr><th>Title</th><th>Date</th><th>Location</th><th>Actions</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    `;
+
+    document.querySelectorAll('.event-edit-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const id = btn.closest('tr').dataset.id;
+        const ev = data.find(e => e.id === id);
+        eventIdField.value = ev.id;
+        document.getElementById('event_title').value = ev.title || '';
+        document.getElementById('event_date').value = ev.event_date || '';
+        document.getElementById('event_time_label').value = ev.time_label || '';
+        document.getElementById('event_location').value = ev.location || '';
+        document.getElementById('event_description').value = ev.description || '';
+        eventSubmitBtn.textContent = 'Save Changes';
+        eventCancelBtn.style.display = 'inline-block';
+        window.scrollTo({ top: eventForm.offsetTop - 20, behavior: 'smooth' });
+      });
+    });
+
+    document.querySelectorAll('.event-delete-btn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const id = btn.closest('tr').dataset.id;
+        if (!confirm('Delete this event?')) return;
+        const { error } = await sb.from('events').delete().eq('id', id);
+        if (error) {
+          alert('Could not delete: ' + error.message);
+        } else {
+          loadEventsAdminList();
+        }
+      });
+    });
+  }
+
+  eventForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    eventStatusEl.className = 'form-status';
+    eventStatusEl.textContent = 'Saving…';
+
+    const payload = {
+      title: document.getElementById('event_title').value.trim(),
+      event_date: document.getElementById('event_date').value || null,
+      time_label: document.getElementById('event_time_label').value.trim() || null,
+      location: document.getElementById('event_location').value.trim() || null,
+      description: document.getElementById('event_description').value.trim() || null,
+    };
+
+    const id = eventIdField.value;
+    const { error } = id
+      ? await sb.from('events').update(payload).eq('id', id)
+      : await sb.from('events').insert(payload);
+
+    if (error) {
+      eventStatusEl.className = 'form-status error';
+      eventStatusEl.textContent = 'Something went wrong: ' + error.message;
+    } else {
+      eventStatusEl.className = 'form-status success';
+      eventStatusEl.textContent = id ? 'Event updated.' : 'Event added.';
+      resetEventForm();
+      loadEventsAdminList();
+    }
+  });
+
+  (async () => {
+    const gate = document.getElementById('admin-gate');
+    const eventsSection = document.getElementById('admin-events-section');
+    const { data: { session } } = await sb.auth.getSession();
+
+    if (!session) {
+      gate.innerHTML = '<p>Please <a href="/login/">log in</a> as an admin.</p>';
+      return;
+    }
+
+    const { data: isAdmin, error: adminCheckError } = await sb.rpc('is_admin');
+
+    if (adminCheckError || !isAdmin) {
+      gate.innerHTML = '<p>Your account does not have admin access.</p>';
+      return;
+    }
+
+    loadAdminTable();
+    eventsSection.style.display = 'block';
+    loadEventsAdminList();
+  })();
+</script>
