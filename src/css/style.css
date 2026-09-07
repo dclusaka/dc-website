@@ -322,6 +322,13 @@ img { max-width: 100%; display: block; }
 
 .site-footer a { color: var(--gold); text-decoration: none; }
 
+.footer-admin-link {
+  color: rgba(255, 255, 255, 0.35) !important;
+  font-size: 0.75rem;
+}
+
+.footer-admin-link:hover { color: rgba(255, 255, 255, 0.7) !important; }
+
 /* Mobile */
 @media (max-width: 720px) {
   .site-header { flex-direction: column; align-items: flex-start; gap: 1rem; }
@@ -438,6 +445,11 @@ img { max-width: 100%; display: block; }
   flex-direction: column;
 }
 
+#mission-other-field {
+  display: flex;
+  flex-direction: column;
+}
+
 .radio-group {
   border: none;
   padding: 0;
@@ -459,6 +471,6 @@ img { max-width: 100%; display: block; }
   font-size: 0.95rem;
   color: var(--ink);
   cursor: pointer;
-} 
+}
 
 .radio-label input { width: auto; padding: 0; }
