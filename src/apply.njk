@@ -71,7 +71,7 @@ title: Apply
   spouseRadios.forEach(radio => {
     radio.addEventListener('change', () => {
       const showSpouse = getHasSpouseValue() === 'yes';
-      spouseFields.style.display = showSpouse ? 'block' : 'none';
+      spouseFields.style.display = showSpouse ? 'flex' : 'none';
       spouseInputs.forEach(input => {
         if (input.type !== 'file') input.required = showSpouse;
       });
