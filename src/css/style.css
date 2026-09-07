@@ -430,6 +430,26 @@ img { max-width: 100%; display: block; }
 .verify-expiry { font-size: 0.85rem; color: var(--ink-soft); margin: 0; }
 .verify-invalid { color: #a33; font-weight: 600; }
 
+.event-detail-meta {
+  color: var(--gold);
+  font-size: 0.95rem;
+  margin: 0 0 0.5rem;
+}
+
+.event-detail-location {
+  color: var(--ink-soft);
+  font-size: 1.05rem;
+  margin: 0 0 2rem;
+}
+
+.event-detail-body {
+  font-size: 1.05rem;
+  color: var(--ink-soft);
+  margin-bottom: 2rem;
+}
+
+.event-detail-body p { margin-bottom: 1rem; }
+
 .spouse-tag { font-size: 0.78rem; color: var(--ink-soft); font-style: italic; }
 
 #spouse-fields h2 {
