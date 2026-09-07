@@ -1,45 +1,86 @@
 ---
 layout: layouts/base.njk
-title: Current Members
+title: Member Login
 ---
 <section class="page-simple page-wide">
-  <h1>Current Members</h1>
+  <h1>Member Login</h1>
   <div id="members-gate">
     <p>Checking your login…</p>
   </div>
 </section>
 
 <script>
+  async function loadOwnCard(session) {
+    const { data, error } = await sb
+      .from('members')
+      .select('first_name, surname, photo_url, status, membership_expires, verify_token')
+      .eq('auth_user_id', session.user.id)
+      .single();
+
+    if (error || !data) {
+      return '<p class="form-status error">Could not load your card.</p>';
+    }
+
+    const fullName = data.first_name + ' ' + data.surname;
+    const verifyUrl = window.location.origin + '/verify/?token=' + data.verify_token;
+    const qrImg = 'https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=' + encodeURIComponent(verifyUrl);
+    const statusLabel = data.status === 'active' ? '✓ Active Member' : data.status.charAt(0).toUpperCase() + data.status.slice(1);
+    const statusClass = data.status === 'active' ? 'card-status-active' : 'card-status-inactive';
+
+    return `
+      <div class="member-card">
+        <img class="member-card-photo" src="${data.photo_url}" alt="${fullName}">
+        <div class="member-card-body">
+          <p class="member-card-name">${fullName}</p>
+          <p class="${statusClass}">${statusLabel}</p>
+          ${data.membership_expires ? `<p class="member-card-expiry">Valid until ${data.membership_expires}</p>` : ''}
+          <img class="member-card-qr" src="${qrImg}" alt="Verification QR code">
+          <p class="member-card-hint">Show this page or QR code to receive member discounts.</p>
+        </div>
+      </div>
+    `;
+  }
+
+  async function loadDirectory() {
+    const { data, error } = await sb.rpc('member_directory');
+
+    if (error) {
+      return '<p class="form-status error">Could not load the directory: ' + error.message + '</p>';
+    }
+
+    if (!data || data.length === 0) {
+      return '<p>The directory will appear once your membership is active.</p>';
+    }
+
+    const rows = data.map(m => `<tr><td>${m.full_name}</td></tr>`).join('');
+
+    return `
+      <table class="member-table">
+        <thead><tr><th>Name</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    `;
+  }
+
   (async () => {
     const gate = document.getElementById('members-gate');
     const { data: { session } } = await sb.auth.getSession();
 
     if (!session) {
-      gate.innerHTML = '<p>Please <a href="/login/">log in</a> to see the member directory.</p>';
+      gate.innerHTML = '<p>Please <a href="/login/">log in</a> to see your membership card and the member directory.</p>';
       return;
     }
 
-    const { data, error } = await sb.rpc('member_directory');
-
-    if (error) {
-      gate.innerHTML = '<p class="form-status error">Could not load the directory: ' + error.message + '</p>';
-      return;
-    }
-
-    if (!data || data.length === 0) {
-      gate.innerHTML = '<p>The directory will appear once your membership is active.</p>';
-      return;
-    }
-
-    const rows = data.map(m =>
-      `<tr><td>${m.full_name}</td></tr>`
-    ).join('');
+    const [cardHtml, directoryHtml] = await Promise.all([
+      loadOwnCard(session),
+      loadDirectory(),
+    ]);
 
     gate.innerHTML = `
-      <table class="member-table">
-        <thead><tr><th>Name</th></tr></thead>
-        <tbody>${rows}</tbody>
-      </table>
+      <h2>My Card</h2>
+      ${cardHtml}
+      <h2>Current Members</h2>
+      ${directoryHtml}
     `;
   })();
 </script>
