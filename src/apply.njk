@@ -4,9 +4,7 @@ title: Apply
 ---
 <section class="page-simple">
   <h1>Become a Member</h1>
-  <p>Regular Annual Membership:</p> 
-  <p>ZMW 750 for Heads of Missions / Honorary Consuls / Holders of a Diplomatic ID.<br>
-  ZMW 1000 for Family (includes Spouse/Partner).</p>
+  <p>Regular Annual Membership: ZMW 750 for Heads of Missions / Honorary Consuls / Holders of a Diplomatic ID. ZMW 1000 for Family (includes Spouse/Partner). Payment details will be sent once your application is received.</p>
 
   <form class="app-form" id="apply-form">
     <label for="surname">Surname</label>
@@ -16,7 +14,59 @@ title: Apply
     <input type="text" id="first_name" name="first_name" required>
 
     <label for="diplomatic_mission">Diplomatic Mission</label>
-    <input type="text" id="diplomatic_mission" name="diplomatic_mission" required>
+    <select id="diplomatic_mission" name="diplomatic_mission" required>
+      <option value="" disabled selected>Choose a mission…</option>
+      <option>Embassy of Algeria</option>
+      <option>Embassy of Angola</option>
+      <option>High Commission of Botswana</option>
+      <option>Embassy of Brazil</option>
+      <option>Embassy of Burundi</option>
+      <option>High Commission of Canada</option>
+      <option>Embassy of China</option>
+      <option>Embassy of Cuba</option>
+      <option>Embassy of the Democratic Republic of the Congo</option>
+      <option>Embassy of Czechia</option>
+      <option>Embassy of Egypt</option>
+      <option>Embassy of Finland</option>
+      <option>Embassy of France</option>
+      <option>Embassy of Germany</option>
+      <option>High Commission of Ghana</option>
+      <option>Apostolic Nunciature (Holy See)</option>
+      <option>High Commission of India</option>
+      <option>Embassy of Ireland</option>
+      <option>Embassy of Israel</option>
+      <option>Embassy of Italy</option>
+      <option>Embassy of Japan</option>
+      <option>High Commission of Kenya</option>
+      <option>Embassy of Libya</option>
+      <option>High Commission of Malawi</option>
+      <option>Embassy of Morocco</option>
+      <option>High Commission of Mozambique</option>
+      <option>Embassy of Namibia</option>
+      <option>High Commission of Nigeria</option>
+      <option>Embassy of Palestine</option>
+      <option>Embassy of Russia</option>
+      <option>High Commission of Rwanda</option>
+      <option>Embassy of Saudi Arabia</option>
+      <option>Embassy of Serbia</option>
+      <option>Embassy of Somalia</option>
+      <option>High Commission of South Africa</option>
+      <option>Embassy of Sudan</option>
+      <option>Embassy of Sweden</option>
+      <option>High Commission of Tanzania</option>
+      <option>Embassy of Turkey</option>
+      <option>High Commission of the United Kingdom</option>
+      <option>Embassy of the United States</option>
+      <option>High Commission of Zimbabwe</option>
+      <option>Delegation of the European Union</option>
+      <option>United Nations (Resident Coordinator's Office)</option>
+      <option value="other">Other (not listed)</option>
+    </select>
+
+    <div id="mission-other-field" style="display:none;">
+      <label for="diplomatic_mission_other">Please specify</label>
+      <input type="text" id="diplomatic_mission_other" name="diplomatic_mission_other">
+    </div>
 
     <label for="diplomatic_title">Diplomatic Title</label>
     <input type="text" id="diplomatic_title" name="diplomatic_title" required>
@@ -62,6 +112,20 @@ title: Apply
 </section>
 
 <script>
+  const missionSelect = document.getElementById('diplomatic_mission');
+  const missionOtherField = document.getElementById('mission-other-field');
+  const missionOtherInput = document.getElementById('diplomatic_mission_other');
+
+  missionSelect.addEventListener('change', () => {
+    const isOther = missionSelect.value === 'other';
+    missionOtherField.style.display = isOther ? 'flex' : 'none';
+    missionOtherInput.required = isOther;
+  });
+
+  function getMissionValue() {
+    return missionSelect.value === 'other' ? missionOtherInput.value.trim() : missionSelect.value;
+  }
+
   const spouseRadios = document.querySelectorAll('input[name="has_spouse"]');
   const spouseFields = document.getElementById('spouse-fields');
   const spouseInputs = spouseFields.querySelectorAll('input');
@@ -107,7 +171,7 @@ title: Apply
       const { data: inserted, error: insertError } = await sb.from('members').insert({
         surname: val('surname'),
         first_name: val('first_name'),
-        diplomatic_mission: val('diplomatic_mission'),
+        diplomatic_mission: getMissionValue(),
         diplomatic_title: val('diplomatic_title'),
         phone: val('phone'),
         email: val('email'),
@@ -138,6 +202,7 @@ title: Apply
       statusEl.textContent = "Thank you! Your application has been received. We'll be in touch about payment and next steps shortly.";
       form.reset();
       spouseFields.style.display = 'none';
+      missionOtherField.style.display = 'none';
     } catch (err) {
       statusEl.className = 'form-status error';
       statusEl.textContent = 'Something went wrong: ' + err.message;
