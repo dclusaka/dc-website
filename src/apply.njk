@@ -60,11 +60,7 @@ title: Apply
       <option>High Commission of the United Kingdom</option>
       <option>Embassy of the United States</option>
       <option>High Commission of Zimbabwe</option>
-      <option>---------------------</option>
-      <option>African Union</option>
-      <option>COMESA</option>
-      <option>European Union</option>
-      <option>IMF</option>
+      <option>Delegation of the European Union</option>
       <option>United Nations</option>
       <option>World Bank</option>
       <option value="other">Other (not listed)</option>
@@ -152,9 +148,9 @@ title: Apply
   });
 
   async function uploadPhoto(file) {
-    const ext = file.name.split('.').pop();
-    const path = `${crypto.randomUUID()}.${ext}`;
-    const { error } = await sb.storage.from('member-photos').upload(path, file);
+    const resized = await resizeImageFile(file, 800, 0.82);
+    const path = `${crypto.randomUUID()}.jpg`;
+    const { error } = await sb.storage.from('member-photos').upload(path, resized, { contentType: 'image/jpeg' });
     if (error) throw error;
     const { data } = sb.storage.from('member-photos').getPublicUrl(path);
     return data.publicUrl;

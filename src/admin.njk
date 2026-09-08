@@ -9,6 +9,69 @@ title: Admin
   </div>
 </section>
 
+<section class="page-simple page-wide" id="admin-events-section" style="display:none;">
+  <h1>Manage Events</h1>
+
+  <form class="app-form" id="event-form">
+    <input type="hidden" id="event_id" value="">
+    <label for="event_title">Title</label>
+    <input type="text" id="event_title" required>
+
+    <label for="event_date">Date (leave blank for "TBD")</label>
+    <input type="date" id="event_date">
+
+    <label for="event_time_label">Time (e.g. "5:30 pm – 7:30 pm")</label>
+    <input type="text" id="event_time_label">
+
+    <label for="event_location">Location</label>
+    <input type="text" id="event_location">
+
+    <label for="event_description">Description</label>
+    <textarea id="event_description" rows="4"></textarea>
+
+    <button type="submit" id="event-submit">Add Event</button>
+    <button type="button" id="event-cancel-edit" style="display:none;">Cancel Edit</button>
+  </form>
+
+  <p class="form-status" id="event-status"></p>
+
+  <div id="admin-events-list"></div>
+</section>
+
+<section class="page-simple page-wide" id="admin-sponsors-section" style="display:none;">
+  <h1>Manage Sponsors</h1>
+
+  <form class="app-form" id="sponsor-form">
+    <input type="hidden" id="sponsor_id" value="">
+    <input type="hidden" id="sponsor_existing_logo" value="">
+
+    <label for="sponsor_name">Name</label>
+    <input type="text" id="sponsor_name" required>
+
+    <label for="sponsor_logo">Logo (leave blank to keep existing when editing)</label>
+    <input type="file" id="sponsor_logo" accept="image/*">
+
+    <label for="sponsor_details">Benefit details (one per line)</label>
+    <textarea id="sponsor_details" rows="4"></textarea>
+
+    <label for="sponsor_notes">Notes (optional)</label>
+    <input type="text" id="sponsor_notes">
+
+    <label for="sponsor_website">Website (optional)</label>
+    <input type="text" id="sponsor_website">
+
+    <label for="sponsor_order">Display order (lower shows first)</label>
+    <input type="number" id="sponsor_order" value="100">
+
+    <button type="submit" id="sponsor-submit">Add Sponsor</button>
+    <button type="button" id="sponsor-cancel-edit" style="display:none;">Cancel Edit</button>
+  </form>
+
+  <p class="form-status" id="sponsor-status"></p>
+
+  <div id="admin-sponsors-list"></div>
+</section>
+
 <script>
   const STATUS_OPTIONS = ['pending', 'active', 'expired', 'rejected'];
 
@@ -74,8 +137,246 @@ title: Admin
     });
   }
 
+  // ---- Event management ----
+  const eventForm = document.getElementById('event-form');
+  const eventIdField = document.getElementById('event_id');
+  const eventSubmitBtn = document.getElementById('event-submit');
+  const eventCancelBtn = document.getElementById('event-cancel-edit');
+  const eventStatusEl = document.getElementById('event-status');
+  const eventsListEl = document.getElementById('admin-events-list');
+
+  function resetEventForm() {
+    eventForm.reset();
+    eventIdField.value = '';
+    eventSubmitBtn.textContent = 'Add Event';
+    eventCancelBtn.style.display = 'none';
+  }
+
+  eventCancelBtn.addEventListener('click', resetEventForm);
+
+  async function loadEventsAdminList() {
+    const { data, error } = await sb
+      .from('events')
+      .select('id, title, event_date, time_label, location, description')
+      .order('event_date', { ascending: false, nullsFirst: true });
+
+    if (error) {
+      eventsListEl.innerHTML = '<p class="form-status error">Could not load events.</p>';
+      return;
+    }
+
+    const rows = data.map(e => `
+      <tr data-id="${e.id}">
+        <td>${e.title}</td>
+        <td>${e.event_date || 'TBD'}</td>
+        <td>${e.location || ''}</td>
+        <td>
+          <button type="button" class="event-edit-btn">Edit</button>
+          <button type="button" class="event-delete-btn">Delete</button>
+        </td>
+      </tr>
+    `).join('');
+
+    eventsListEl.innerHTML = `
+      <table class="member-table">
+        <thead><tr><th>Title</th><th>Date</th><th>Location</th><th>Actions</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    `;
+
+    document.querySelectorAll('.event-edit-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const id = btn.closest('tr').dataset.id;
+        const ev = data.find(e => e.id === id);
+        eventIdField.value = ev.id;
+        document.getElementById('event_title').value = ev.title || '';
+        document.getElementById('event_date').value = ev.event_date || '';
+        document.getElementById('event_time_label').value = ev.time_label || '';
+        document.getElementById('event_location').value = ev.location || '';
+        document.getElementById('event_description').value = ev.description || '';
+        eventSubmitBtn.textContent = 'Save Changes';
+        eventCancelBtn.style.display = 'inline-block';
+        window.scrollTo({ top: eventForm.offsetTop - 20, behavior: 'smooth' });
+      });
+    });
+
+    document.querySelectorAll('.event-delete-btn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const id = btn.closest('tr').dataset.id;
+        if (!confirm('Delete this event?')) return;
+        const { error } = await sb.from('events').delete().eq('id', id);
+        if (error) {
+          alert('Could not delete: ' + error.message);
+        } else {
+          loadEventsAdminList();
+        }
+      });
+    });
+  }
+
+  eventForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    eventStatusEl.className = 'form-status';
+    eventStatusEl.textContent = 'Saving…';
+
+    const payload = {
+      title: document.getElementById('event_title').value.trim(),
+      event_date: document.getElementById('event_date').value || null,
+      time_label: document.getElementById('event_time_label').value.trim() || null,
+      location: document.getElementById('event_location').value.trim() || null,
+      description: document.getElementById('event_description').value.trim() || null,
+    };
+
+    const id = eventIdField.value;
+    const { error } = id
+      ? await sb.from('events').update(payload).eq('id', id)
+      : await sb.from('events').insert(payload);
+
+    if (error) {
+      eventStatusEl.className = 'form-status error';
+      eventStatusEl.textContent = 'Something went wrong: ' + error.message;
+    } else {
+      eventStatusEl.className = 'form-status success';
+      eventStatusEl.textContent = id ? 'Event updated.' : 'Event added.';
+      resetEventForm();
+      loadEventsAdminList();
+    }
+  });
+
+  // ---- Sponsor management ----
+  const sponsorForm = document.getElementById('sponsor-form');
+  const sponsorIdField = document.getElementById('sponsor_id');
+  const sponsorExistingLogoField = document.getElementById('sponsor_existing_logo');
+  const sponsorSubmitBtn = document.getElementById('sponsor-submit');
+  const sponsorCancelBtn = document.getElementById('sponsor-cancel-edit');
+  const sponsorStatusEl = document.getElementById('sponsor-status');
+  const sponsorsListEl = document.getElementById('admin-sponsors-list');
+
+  function resetSponsorForm() {
+    sponsorForm.reset();
+    sponsorIdField.value = '';
+    sponsorExistingLogoField.value = '';
+    document.getElementById('sponsor_order').value = 100;
+    sponsorSubmitBtn.textContent = 'Add Sponsor';
+    sponsorCancelBtn.style.display = 'none';
+  }
+
+  sponsorCancelBtn.addEventListener('click', resetSponsorForm);
+
+  async function uploadSponsorLogo(file) {
+    const isPng = file.type === 'image/png';
+    const outputType = isPng ? 'image/png' : 'image/jpeg';
+    const resized = await resizeImageFile(file, 500, 0.85, outputType);
+    const path = `${crypto.randomUUID()}.${isPng ? 'png' : 'jpg'}`;
+    const { error } = await sb.storage.from('sponsor-logos').upload(path, resized, { contentType: outputType });
+    if (error) throw error;
+    const { data } = sb.storage.from('sponsor-logos').getPublicUrl(path);
+    return data.publicUrl;
+  }
+
+  async function loadSponsorsAdminList() {
+    const { data, error } = await sb
+      .from('sponsors')
+      .select('id, name, logo_url, details, notes, website, sort_order')
+      .order('sort_order', { ascending: true });
+
+    if (error) {
+      sponsorsListEl.innerHTML = '<p class="form-status error">Could not load sponsors.</p>';
+      return;
+    }
+
+    const rows = data.map(s => `
+      <tr data-id="${s.id}">
+        <td>${s.logo_url ? `<img src="${s.logo_url}" alt="${s.name}" class="admin-sponsor-thumb">` : '—'}</td>
+        <td>${s.name}</td>
+        <td>${s.sort_order}</td>
+        <td>
+          <button type="button" class="sponsor-edit-btn">Edit</button>
+          <button type="button" class="sponsor-delete-btn">Delete</button>
+        </td>
+      </tr>
+    `).join('');
+
+    sponsorsListEl.innerHTML = `
+      <table class="member-table">
+        <thead><tr><th>Logo</th><th>Name</th><th>Order</th><th>Actions</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    `;
+
+    document.querySelectorAll('.sponsor-edit-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const id = btn.closest('tr').dataset.id;
+        const s = data.find(x => x.id === id);
+        sponsorIdField.value = s.id;
+        sponsorExistingLogoField.value = s.logo_url || '';
+        document.getElementById('sponsor_name').value = s.name || '';
+        document.getElementById('sponsor_details').value = s.details || '';
+        document.getElementById('sponsor_notes').value = s.notes || '';
+        document.getElementById('sponsor_website').value = s.website || '';
+        document.getElementById('sponsor_order').value = s.sort_order || 100;
+        sponsorSubmitBtn.textContent = 'Save Changes';
+        sponsorCancelBtn.style.display = 'inline-block';
+        window.scrollTo({ top: sponsorForm.offsetTop - 20, behavior: 'smooth' });
+      });
+    });
+
+    document.querySelectorAll('.sponsor-delete-btn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const id = btn.closest('tr').dataset.id;
+        if (!confirm('Delete this sponsor?')) return;
+        const { error } = await sb.from('sponsors').delete().eq('id', id);
+        if (error) {
+          alert('Could not delete: ' + error.message);
+        } else {
+          loadSponsorsAdminList();
+        }
+      });
+    });
+  }
+
+  sponsorForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    sponsorSubmitBtn.disabled = true;
+    sponsorStatusEl.className = 'form-status';
+    sponsorStatusEl.textContent = 'Saving…';
+
+    try {
+      const logoFile = document.getElementById('sponsor_logo').files[0];
+      const logo_url = logoFile ? await uploadSponsorLogo(logoFile) : sponsorExistingLogoField.value || null;
+
+      const payload = {
+        name: document.getElementById('sponsor_name').value.trim(),
+        logo_url,
+        details: document.getElementById('sponsor_details').value.trim() || null,
+        notes: document.getElementById('sponsor_notes').value.trim() || null,
+        website: document.getElementById('sponsor_website').value.trim() || null,
+        sort_order: parseInt(document.getElementById('sponsor_order').value, 10) || 100,
+      };
+
+      const id = sponsorIdField.value;
+      const { error } = id
+        ? await sb.from('sponsors').update(payload).eq('id', id)
+        : await sb.from('sponsors').insert(payload);
+
+      if (error) throw error;
+
+      sponsorStatusEl.className = 'form-status success';
+      sponsorStatusEl.textContent = id ? 'Sponsor updated.' : 'Sponsor added.';
+      resetSponsorForm();
+      loadSponsorsAdminList();
+    } catch (err) {
+      sponsorStatusEl.className = 'form-status error';
+      sponsorStatusEl.textContent = 'Something went wrong: ' + err.message;
+    } finally {
+      sponsorSubmitBtn.disabled = false;
+    }
+  });
+
   (async () => {
     const gate = document.getElementById('admin-gate');
+    const eventsSection = document.getElementById('admin-events-section');
+    const sponsorsSection = document.getElementById('admin-sponsors-section');
     const { data: { session } } = await sb.auth.getSession();
 
     if (!session) {
@@ -91,5 +392,9 @@ title: Admin
     }
 
     loadAdminTable();
+    eventsSection.style.display = 'block';
+    loadEventsAdminList();
+    sponsorsSection.style.display = 'block';
+    loadSponsorsAdminList();
   })();
 </script>

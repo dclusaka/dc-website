@@ -6,20 +6,36 @@ title: Member Benefits
   <h1>Member Benefits</h1>
   <p class="benefits-intro">Show your membership card at any of the partners below to receive these discounts.</p>
 
-  <div class="benefits-list">
-    {% for place in benefits %}
-    <article class="benefit-card">
-      <h2>{{ place.name }}</h2>
-      <ul>
-        {% for line in place.details %}
-        <li>{{ line }}</li>
-        {% endfor %}
-      </ul>
-      {% if place.notes %}<p class="benefit-notes">{{ place.notes }}</p>{% endif %}
-      {% if place.website %}<p class="benefit-link"><a href="{{ place.website }}">{{ place.website }}</a></p>{% endif %}
-    </article>
-    {% endfor %}
+  <div id="benefits-list">
+    <p>Loading…</p>
   </div>
 
   <a class="button-primary" href="/apply/">Become a Member</a>
 </section>
+
+<script>
+  (async () => {
+    const container = document.getElementById('benefits-list');
+    const { data, error } = await sb
+      .from('sponsors')
+      .select('name, logo_url, details, notes, website')
+      .order('sort_order', { ascending: true });
+
+    if (error) {
+      container.innerHTML = '<p class="form-status error">Could not load benefits.</p>';
+      return;
+    }
+
+    container.innerHTML = `<div class="benefits-list">${data.map(s => `
+      <article class="benefit-card">
+        ${s.logo_url ? `<img class="benefit-logo" src="${s.logo_url}" alt="${s.name} logo">` : ''}
+        <h2>${s.name}</h2>
+        <ul>
+          ${(s.details || '').split('\n').filter(Boolean).map(line => `<li>${line}</li>`).join('')}
+        </ul>
+        ${s.notes ? `<p class="benefit-notes">${s.notes}</p>` : ''}
+        ${s.website ? `<p class="benefit-link"><a href="${s.website}">${s.website}</a></p>` : ''}
+      </article>
+    `).join('')}</div>`;
+  })();
+</script>
