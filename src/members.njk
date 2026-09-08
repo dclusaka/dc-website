@@ -9,6 +9,7 @@ title: Member Login
   </div>
 </section>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
   async function loadOwnCard(session) {
     const { data, error } = await sb
@@ -28,16 +29,18 @@ title: Member Login
     const statusClass = data.status === 'active' ? 'card-status-active' : 'card-status-inactive';
 
     return `
-      <div class="member-card">
-        <img class="member-card-photo" src="${data.photo_url}" alt="${fullName}">
+      <div class="member-card" id="member-card-capture">
+        <img class="member-card-photo" src="${data.photo_url}" crossorigin="anonymous" alt="${fullName}">
         <div class="member-card-body">
           <p class="member-card-name">${fullName}</p>
           <p class="${statusClass}">${statusLabel}</p>
           ${data.membership_expires ? `<p class="member-card-expiry">Valid until ${data.membership_expires}</p>` : ''}
-          <img class="member-card-qr" src="${qrImg}" alt="Verification QR code">
+          <img class="member-card-qr" src="${qrImg}" crossorigin="anonymous" alt="Verification QR code">
           <p class="member-card-hint">Show this page or QR code to receive member discounts.</p>
         </div>
       </div>
+      <button type="button" id="save-card-btn" class="button-primary" style="margin-top:1rem;">Save Card as Image</button>
+      <p class="form-status" id="save-card-status"></p>
     `;
   }
 
@@ -82,5 +85,29 @@ title: Member Login
       <h2>Current Members</h2>
       ${directoryHtml}
     `;
+
+    const saveBtn = document.getElementById('save-card-btn');
+    if (saveBtn) {
+      saveBtn.addEventListener('click', async () => {
+        const statusEl = document.getElementById('save-card-status');
+        saveBtn.disabled = true;
+        statusEl.textContent = 'Preparing image…';
+
+        try {
+          const cardEl = document.getElementById('member-card-capture');
+          const canvas = await html2canvas(cardEl, { useCORS: true, backgroundColor: '#FBF8FC', scale: 2 });
+          const link = document.createElement('a');
+          link.download = 'membership-card.png';
+          link.href = canvas.toDataURL('image/png');
+          link.click();
+          statusEl.textContent = '';
+        } catch (err) {
+          statusEl.className = 'form-status error';
+          statusEl.textContent = 'Could not save image: ' + err.message;
+        } finally {
+          saveBtn.disabled = false;
+        }
+      });
+    }
   })();
 </script>
