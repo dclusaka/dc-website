@@ -215,6 +215,20 @@ img { max-width: 100%; display: block; }
   padding: 1.5rem;
 }
 
+.benefit-logo {
+  max-width: 140px;
+  max-height: 70px;
+  object-fit: contain;
+  margin-bottom: 1rem;
+}
+
+.admin-sponsor-thumb {
+  width: 48px;
+  height: 48px;
+  object-fit: contain;
+  background: var(--ivory);
+}
+
 .benefit-card h2 {
   font-size: 1.15rem;
   margin: 0 0 0.75rem;
