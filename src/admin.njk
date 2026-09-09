@@ -4,9 +4,55 @@ title: Admin
 ---
 <section class="page-simple page-wide">
   <h1>Admin — All Members</h1>
+  <input type="text" id="member-search" placeholder="Search by name, mission, title, email, phone…" class="admin-search-box">
   <div id="admin-gate">
     <p>Checking your login…</p>
   </div>
+</section>
+
+<section class="page-simple page-wide" id="admin-member-edit-section" style="display:none;">
+  <h1>Edit Member</h1>
+
+  <form class="app-form" id="member-form">
+    <input type="hidden" id="member_id" value="">
+
+    <label for="member_surname">Surname</label>
+    <input type="text" id="member_surname" required>
+
+    <label for="member_first_name">First Name</label>
+    <input type="text" id="member_first_name" required>
+
+    <label for="member_mission">Diplomatic Mission</label>
+    <input type="text" id="member_mission">
+
+    <label for="member_title">Diplomatic Title</label>
+    <input type="text" id="member_title">
+
+    <label for="member_phone">Phone</label>
+    <input type="tel" id="member_phone">
+
+    <label for="member_email">Email</label>
+    <input type="email" id="member_email">
+
+    <label for="member_status">Status</label>
+    <select id="member_status">
+      <option value="pending">pending</option>
+      <option value="active">active</option>
+      <option value="expired">expired</option>
+      <option value="rejected">rejected</option>
+    </select>
+
+    <label for="member_started">Membership Started</label>
+    <input type="date" id="member_started">
+
+    <label for="member_expires">Membership Expires</label>
+    <input type="date" id="member_expires">
+
+    <button type="submit" id="member-submit">Save Changes</button>
+    <button type="button" id="member-cancel-edit">Cancel</button>
+  </form>
+
+  <p class="form-status" id="member-edit-status"></p>
 </section>
 
 <section class="page-simple page-wide" id="admin-events-section" style="display:none;">
@@ -74,25 +120,15 @@ title: Admin
 
 <script>
   const STATUS_OPTIONS = ['pending', 'active', 'expired', 'rejected'];
+  let allMembers = [];
 
-  async function loadAdminTable() {
-    const gate = document.getElementById('admin-gate');
-    const { data, error } = await sb
-      .from('members')
-      .select('id, surname, first_name, diplomatic_mission, diplomatic_title, email, phone, status, membership_expires, spouse_of')
-      .order('created_at', { ascending: false });
-
-    if (error) {
-      gate.innerHTML = '<p class="form-status error">Could not load members: ' + error.message + '</p>';
-      return;
-    }
-
-    const rows = data.map(m => `
+  function renderMemberRows(list) {
+    return list.map(m => `
       <tr data-id="${m.id}">
         <td>${m.first_name} ${m.surname}${m.spouse_of ? ' <span class="spouse-tag">(spouse)</span>' : ''}</td>
         <td>${m.diplomatic_mission || ''}</td>
         <td>${m.diplomatic_title || ''}</td>
-        <td>${m.email}</td>
+        <td>${m.email || ''}</td>
         <td>${m.phone || ''}</td>
         <td>
           <select class="status-select">
@@ -100,15 +136,19 @@ title: Admin
           </select>
         </td>
         <td>${m.membership_expires || '—'}</td>
+        <td><button type="button" class="member-edit-btn">Edit</button></td>
       </tr>
     `).join('');
+  }
 
+  function renderMemberTable(list) {
+    const gate = document.getElementById('admin-gate');
     gate.innerHTML = `
       <table class="member-table">
         <thead>
-          <tr><th>Name</th><th>Mission</th><th>Title</th><th>Email</th><th>Phone</th><th>Status</th><th>Expires</th></tr>
+          <tr><th>Name</th><th>Mission</th><th>Title</th><th>Email</th><th>Phone</th><th>Status</th><th>Expires</th><th></th></tr>
         </thead>
-        <tbody>${rows}</tbody>
+        <tbody>${renderMemberRows(list)}</tbody>
       </table>
     `;
 
@@ -135,7 +175,111 @@ title: Admin
         }
       });
     });
+
+    document.querySelectorAll('.member-edit-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const id = btn.closest('tr').dataset.id;
+        const m = allMembers.find(x => x.id === id);
+        openMemberEditForm(m);
+      });
+    });
   }
+
+  function filterMembers(query) {
+    const q = query.trim().toLowerCase();
+    if (!q) return allMembers;
+    return allMembers.filter(m => {
+      const haystack = [
+        m.first_name, m.surname, m.diplomatic_mission, m.diplomatic_title,
+        m.email, m.phone, m.status
+      ].filter(Boolean).join(' ').toLowerCase();
+      return haystack.includes(q);
+    });
+  }
+
+  document.getElementById('member-search').addEventListener('input', (e) => {
+    renderMemberTable(filterMembers(e.target.value));
+  });
+
+  async function loadAdminTable() {
+    const gate = document.getElementById('admin-gate');
+    const { data, error } = await sb
+      .from('members')
+      .select('id, surname, first_name, diplomatic_mission, diplomatic_title, email, phone, status, membership_started, membership_expires, spouse_of')
+      .order('diplomatic_mission', { ascending: true, nullsFirst: false })
+      .order('surname', { ascending: true });
+
+    if (error) {
+      gate.innerHTML = '<p class="form-status error">Could not load members: ' + error.message + '</p>';
+      return;
+    }
+
+    allMembers = data;
+    const searchBox = document.getElementById('member-search');
+    renderMemberTable(filterMembers(searchBox.value));
+  }
+
+  // ---- Member editing ----
+  const memberEditSection = document.getElementById('admin-member-edit-section');
+  const memberForm = document.getElementById('member-form');
+  const memberIdField = document.getElementById('member_id');
+  const memberEditStatusEl = document.getElementById('member-edit-status');
+  const memberCancelBtn = document.getElementById('member-cancel-edit');
+
+  function openMemberEditForm(m) {
+    memberIdField.value = m.id;
+    document.getElementById('member_surname').value = m.surname || '';
+    document.getElementById('member_first_name').value = m.first_name || '';
+    document.getElementById('member_mission').value = m.diplomatic_mission || '';
+    document.getElementById('member_title').value = m.diplomatic_title || '';
+    document.getElementById('member_phone').value = m.phone || '';
+    document.getElementById('member_email').value = m.email || '';
+    document.getElementById('member_status').value = m.status || 'pending';
+    document.getElementById('member_started').value = m.membership_started || '';
+    document.getElementById('member_expires').value = m.membership_expires || '';
+    memberEditStatusEl.textContent = '';
+    memberEditSection.style.display = 'block';
+    window.scrollTo({ top: memberEditSection.offsetTop - 20, behavior: 'smooth' });
+  }
+
+  function closeMemberEditForm() {
+    memberForm.reset();
+    memberIdField.value = '';
+    memberEditSection.style.display = 'none';
+  }
+
+  memberCancelBtn.addEventListener('click', closeMemberEditForm);
+
+  memberForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    memberEditStatusEl.className = 'form-status';
+    memberEditStatusEl.textContent = 'Saving…';
+
+    const payload = {
+      surname: document.getElementById('member_surname').value.trim(),
+      first_name: document.getElementById('member_first_name').value.trim(),
+      diplomatic_mission: document.getElementById('member_mission').value.trim() || null,
+      diplomatic_title: document.getElementById('member_title').value.trim() || null,
+      phone: document.getElementById('member_phone').value.trim() || null,
+      email: document.getElementById('member_email').value.trim() || null,
+      status: document.getElementById('member_status').value,
+      membership_started: document.getElementById('member_started').value || null,
+      membership_expires: document.getElementById('member_expires').value || null,
+    };
+
+    const id = memberIdField.value;
+    const { error } = await sb.from('members').update(payload).eq('id', id);
+
+    if (error) {
+      memberEditStatusEl.className = 'form-status error';
+      memberEditStatusEl.textContent = 'Something went wrong: ' + error.message;
+    } else {
+      memberEditStatusEl.className = 'form-status success';
+      memberEditStatusEl.textContent = 'Member updated.';
+      closeMemberEditForm();
+      loadAdminTable();
+    }
+  });
 
   // ---- Event management ----
   const eventForm = document.getElementById('event-form');
