@@ -471,6 +471,19 @@ img { max-width: 100%; display: block; }
 
 .event-detail-body p { margin-bottom: 1rem; }
 
+.admin-search-box {
+  width: 100%;
+  max-width: 28rem;
+  font-family: var(--body);
+  font-size: 0.95rem;
+  padding: 0.6rem 0.8rem;
+  border: 1px solid var(--parchment-line);
+  background: var(--ivory);
+  color: var(--ink);
+  margin: 1rem 0 0.5rem;
+  display: block;
+}
+
 .spouse-tag { font-size: 0.78rem; color: var(--ink-soft); font-style: italic; }
 
 #spouse-fields h2 {
