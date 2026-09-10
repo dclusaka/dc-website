@@ -59,7 +59,8 @@ img { max-width: 100%; display: block; }
 }
 
 .wordmark-full {
-  font-size: 0.85rem;
+  font-size: 1.3rem;
+  font-weight: 700;
   color: var(--gold);
   display: none;
 }
