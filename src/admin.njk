@@ -4,7 +4,7 @@ title: Admin
 ---
 <section class="page-simple page-wide">
   <h1>Admin — All Members</h1>
-  <input type="text" id="member-search" placeholder="Search by name, mission, title, email, phone…" class="admin-search-box">
+  <input type="text" id="member-search" placeholder="Search by name, mission, title, email, phone…" class="admin-search-box" style="display:none;">
   <div id="admin-gate">
     <p>Checking your login…</p>
   </div>
@@ -535,6 +535,7 @@ title: Admin
       return;
     }
 
+    document.getElementById('member-search').style.display = 'block';
     loadAdminTable();
     eventsSection.style.display = 'block';
     loadEventsAdminList();
