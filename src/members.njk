@@ -2,6 +2,9 @@
 layout: layouts/base.njk
 title: Member Login
 ---
+<div id="logout-bar" style="display:none;text-align:right;padding:1rem clamp(1.25rem, 4vw, 3rem) 0;">
+  <button type="button" id="logout-btn" style="cursor:pointer;font-family:inherit;font-size:0.9rem;padding:0.5rem 1.1rem;background:none;color:#331648;border:1px solid #331648;">Log out</button>
+</div>
 <section class="page-simple page-wide">
   <h1>Member Login</h1>
   <div id="members-gate">
@@ -86,6 +89,12 @@ title: Member Login
       gate.innerHTML = '<p>Please <a href="/login/">log in</a> to see your membership card and the member directory.</p>';
       return;
     }
+
+    document.getElementById('logout-bar').style.display = 'block';
+    document.getElementById('logout-btn').addEventListener('click', async () => {
+      await sb.auth.signOut({ scope: 'local' });
+      window.location.href = '/login/';
+    });
 
     const [cardHtml, directoryHtml] = await Promise.all([
       loadOwnCard(session),

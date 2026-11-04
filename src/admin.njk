@@ -2,6 +2,9 @@
 layout: layouts/base.njk
 title: Admin
 ---
+<div id="logout-bar" style="display:none;text-align:right;padding:1rem clamp(1.25rem, 4vw, 3rem) 0;">
+  <button type="button" id="logout-btn" style="cursor:pointer;font-family:inherit;font-size:0.9rem;padding:0.5rem 1.1rem;background:none;color:#331648;border:1px solid #331648;">Log out</button>
+</div>
 <section class="page-simple page-wide">
   <h1>Admin — All Members</h1>
   <input type="text" id="member-search" placeholder="Search by name, mission, title, email, phone…" class="admin-search-box" style="display:none;">
@@ -555,6 +558,11 @@ title: Admin
     }
 
     document.getElementById('member-search').style.display = 'block';
+    document.getElementById('logout-bar').style.display = 'block';
+    document.getElementById('logout-btn').addEventListener('click', async () => {
+      await sb.auth.signOut({ scope: 'local' });
+      window.location.href = '/login/';
+    });
     loadAdminTable();
     eventsSection.style.display = 'block';
     loadEventsAdminList();
