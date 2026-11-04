@@ -11,6 +11,10 @@ title: Member Login
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
+  function esc(v) {
+    return String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  }
+
   async function loadOwnCard(session) {
     const { data, error } = await sb
       .from('members')
@@ -30,9 +34,11 @@ title: Member Login
 
     return `
       <div class="member-card" id="member-card-capture">
-        <img class="member-card-photo" src="${data.photo_url}" crossorigin="anonymous" alt="${fullName}">
+        ${data.photo_url
+          ? `<img class="member-card-photo" src="${esc(data.photo_url)}" crossorigin="anonymous" alt="${esc(fullName)}">`
+          : `<div class="member-card-photo" style="display:flex;align-items:center;justify-content:center;background:#e4dcea;color:#331648;font-size:1.6rem;font-weight:600;">${esc((data.first_name || '').charAt(0) + (data.surname || '').charAt(0))}</div>`}
         <div class="member-card-body">
-          <p class="member-card-name">${fullName}</p>
+          <p class="member-card-name">${esc(fullName)}</p>
           <p class="${statusClass}">${statusLabel}</p>
           ${data.membership_expires ? `<p class="member-card-expiry">Valid until ${data.membership_expires}</p>` : ''}
           <img class="member-card-qr" src="${qrImg}" crossorigin="anonymous" alt="Verification QR code">
@@ -48,18 +54,25 @@ title: Member Login
     const { data, error } = await sb.rpc('member_directory');
 
     if (error) {
-      return '<p class="form-status error">Could not load the directory: ' + error.message + '</p>';
+      return '<p class="form-status error">Could not load the directory: ' + esc(error.message) + '</p>';
     }
 
     if (!data || data.length === 0) {
       return '<p>The directory will appear once your membership is active.</p>';
     }
 
-    const rows = data.map(m => `<tr><td>${m.full_name}</td></tr>`).join('');
+    const rows = data.map(m => `
+      <tr>
+        <td>${esc(m.full_name)}</td>
+        <td>${esc(m.diplomatic_mission)}</td>
+        <td>${m.email ? `<a href="mailto:${esc(m.email)}">${esc(m.email)}</a>` : ''}</td>
+        <td>${m.phone ? `<a href="tel:${esc(String(m.phone).replace(/\s+/g, ''))}">${esc(m.phone)}</a>` : ''}</td>
+      </tr>
+    `).join('');
 
     return `
       <table class="member-table">
-        <thead><tr><th>Name</th></tr></thead>
+        <thead><tr><th>Name</th><th>Mission</th><th>Email</th><th>Phone</th></tr></thead>
         <tbody>${rows}</tbody>
       </table>
     `;
