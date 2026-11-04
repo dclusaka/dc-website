@@ -48,6 +48,9 @@ title: Admin
     <label for="member_expires">Membership Expires</label>
     <input type="date" id="member_expires">
 
+    <label for="member_photo">Photo (leave blank to keep the current one)</label>
+    <input type="file" id="member_photo" accept="image/*">
+
     <button type="submit" id="member-submit">Save Changes</button>
     <button type="button" id="member-cancel-edit">Cancel</button>
   </form>
@@ -268,6 +271,22 @@ title: Admin
     };
 
     const id = memberIdField.value;
+
+    try {
+      const photoFile = document.getElementById('member_photo').files[0];
+      if (photoFile) {
+        const resized = await resizeImageFile(photoFile, 800, 0.82);
+        const path = `${crypto.randomUUID()}.jpg`;
+        const { error: uploadError } = await sb.storage.from('member-photos').upload(path, resized, { contentType: 'image/jpeg' });
+        if (uploadError) throw uploadError;
+        payload.photo_url = sb.storage.from('member-photos').getPublicUrl(path).data.publicUrl;
+      }
+    } catch (uploadErr) {
+      memberEditStatusEl.className = 'form-status error';
+      memberEditStatusEl.textContent = 'Photo upload failed: ' + uploadErr.message;
+      return;
+    }
+
     const { error } = await sb.from('members').update(payload).eq('id', id);
 
     if (error) {
