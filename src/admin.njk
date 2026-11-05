@@ -7,11 +7,13 @@ title: Admin
   .admin-wide .member-table { table-layout: auto; }
   .admin-wide .member-table th,
   .admin-wide .member-table td { vertical-align: top; padding: 0.75rem 1rem; }
-  .admin-wide .member-table td:nth-child(1) { min-width: 13rem; }
-  .admin-wide .member-table td:nth-child(2) { min-width: 8rem; }
-  .admin-wide .member-table td:nth-child(4) { overflow-wrap: anywhere; }
-  .admin-wide .member-table td:nth-child(5) { white-space: nowrap; }
-  .admin-wide .member-table td:nth-child(7) { white-space: nowrap; }
+  #admin-gate .member-table td:nth-child(1) { min-width: 13rem; }
+  #admin-gate .member-table td:nth-child(2) { min-width: 8rem; }
+  #admin-gate .member-table td:nth-child(4) { overflow-wrap: anywhere; }
+  #admin-gate .member-table td:nth-child(5) { white-space: nowrap; }
+  #admin-gate .member-table td:nth-child(7) { white-space: nowrap; }
+  #admin-sponsors-list .member-table th:first-child,
+  #admin-sponsors-list .member-table td:first-child { width: 5rem; }
   .member-edit-btn { margin-top: 0.4rem; cursor: pointer; }
 </style>
 <div id="logout-bar" style="display:none;text-align:right;padding:1rem clamp(1.25rem, 4vw, 3rem) 0;">
@@ -54,7 +56,6 @@ title: Admin
       <option value="pending">Pending</option>
       <option value="active">Active</option>
       <option value="expired">Expired</option>
-      <option value="rejected">Rejected</option>
     </select>
 
     <label for="member_started">Membership Started</label>
@@ -125,7 +126,7 @@ title: Admin
     <input type="text" id="sponsor_website">
 
     <label for="sponsor_order">Display order (lower shows first)</label>
-    <input type="number" id="sponsor_order" value="100">
+    <input type="number" id="sponsor_order" value="1" min="1">
 
     <button type="submit" id="sponsor-submit">Add Sponsor</button>
     <button type="button" id="sponsor-cancel-edit" style="display:none;">Cancel Edit</button>
@@ -137,7 +138,7 @@ title: Admin
 </section>
 
 <script>
-  const STATUS_OPTIONS = ['pending', 'active', 'expired', 'rejected'];
+  const STATUS_OPTIONS = ['pending', 'active', 'expired'];
   let allMembers = [];
 
   function esc(v) {
@@ -436,11 +437,13 @@ title: Admin
   const sponsorStatusEl = document.getElementById('sponsor-status');
   const sponsorsListEl = document.getElementById('admin-sponsors-list');
 
+  let nextSponsorOrder = 1;
+
   function resetSponsorForm() {
     sponsorForm.reset();
     sponsorIdField.value = '';
     sponsorExistingLogoField.value = '';
-    document.getElementById('sponsor_order').value = 100;
+    document.getElementById('sponsor_order').value = nextSponsorOrder;
     sponsorSubmitBtn.textContent = 'Add Sponsor';
     sponsorCancelBtn.style.display = 'none';
   }
@@ -469,11 +472,14 @@ title: Admin
       return;
     }
 
+    nextSponsorOrder = data.length ? Math.max(...data.map(x => x.sort_order || 0)) + 1 : 1;
+    if (!sponsorIdField.value) document.getElementById('sponsor_order').value = nextSponsorOrder;
+
     const rows = data.map(s => `
-      <tr data-id="${s.id}">
-        <td>${s.logo_url ? `<img src="${s.logo_url}" alt="${s.name}" class="admin-sponsor-thumb">` : '—'}</td>
-        <td>${s.name}</td>
-        <td>${s.sort_order}</td>
+      <tr data-id="${esc(s.id)}">
+        <td>${esc(s.sort_order)}</td>
+        <td>${s.logo_url ? `<img src="${esc(s.logo_url)}" alt="${esc(s.name)}" class="admin-sponsor-thumb">` : '—'}</td>
+        <td>${esc(s.name)}</td>
         <td>
           <button type="button" class="sponsor-edit-btn">Edit</button>
           <button type="button" class="sponsor-delete-btn">Delete</button>
@@ -483,7 +489,7 @@ title: Admin
 
     sponsorsListEl.innerHTML = `
       <table class="member-table">
-        <thead><tr><th>Logo</th><th>Name</th><th>Order</th><th>Actions</th></tr></thead>
+        <thead><tr><th>Order</th><th>Logo</th><th>Name</th><th>Actions</th></tr></thead>
         <tbody>${rows}</tbody>
       </table>
     `;
@@ -498,7 +504,7 @@ title: Admin
         document.getElementById('sponsor_details').value = s.details || '';
         document.getElementById('sponsor_notes').value = s.notes || '';
         document.getElementById('sponsor_website').value = s.website || '';
-        document.getElementById('sponsor_order').value = s.sort_order || 100;
+        document.getElementById('sponsor_order').value = s.sort_order || nextSponsorOrder;
         sponsorSubmitBtn.textContent = 'Save Changes';
         sponsorCancelBtn.style.display = 'inline-block';
         window.scrollTo({ top: sponsorForm.offsetTop - 20, behavior: 'smooth' });
@@ -535,7 +541,7 @@ title: Admin
         details: document.getElementById('sponsor_details').value.trim() || null,
         notes: document.getElementById('sponsor_notes').value.trim() || null,
         website: document.getElementById('sponsor_website').value.trim() || null,
-        sort_order: parseInt(document.getElementById('sponsor_order').value, 10) || 100,
+        sort_order: parseInt(document.getElementById('sponsor_order').value, 10) || nextSponsorOrder,
       };
 
       const id = sponsorIdField.value;
