@@ -2,11 +2,36 @@
 layout: layouts/base.njk
 title: Apply
 ---
+<style>
+  .payment-box { background: #FBF8FC; border: 1px solid #DDD0E2; padding: 1.25rem 1.5rem; margin: 1.5rem 0; }
+  .payment-box h2 { font-size: 1.15rem; margin: 0 0 0.75rem; }
+  .payment-box h3 { font-size: 0.95rem; margin: 1rem 0 0.25rem; }
+  .payment-box p { margin: 0.2rem 0; }
+  .payment-box .payment-note { margin-top: 1rem; font-size: 0.9rem; color: #5B4F63; }
+</style>
+
 <section class="page-simple">
   <h1>Become a Member</h1>
   <p>Regular Annual Membership:</p>
   <p>ZMW 750 for Heads of Missions / Honorary Consuls / Holders of a Diplomatic ID</p>
   <p>ZMW 1000 for Family (includes Spouse/Partner)</p>
+
+  <div class="payment-box" id="payment-details">
+    <h2>How to pay</h2>
+
+    <h3>Payment Method #1: Airtel Money</h3>
+    <p>097 777 0313 (Levi Zulu)</p>
+
+    <h3>Payment Method #2: Bank transfer</h3>
+    <p>Bank Name: Stanbic Bank</p>
+    <p>Account Number: 913 000 2685128</p>
+    <p>Bank Code: 040015</p>
+    <p>Swift Code: SBICZMLX</p>
+    <p>Branch: Mulungushi Branch</p>
+    <p>Address: Manda Hill Shopping Mall, Great East Road</p>
+
+    <p class="payment-note">Your membership will be activated once an admin has confirmed your payment.</p>
+  </div>
 
   <form class="app-form" id="apply-form">
     <label for="surname">Surname</label>
@@ -134,6 +159,7 @@ title: Apply
   </form>
 
   <p class="form-status" id="apply-status"></p>
+  <div class="payment-box" id="payment-reminder" style="display:none;"></div>
 </section>
 
 <script>
@@ -181,10 +207,12 @@ title: Apply
   const form = document.getElementById('apply-form');
   const statusEl = document.getElementById('apply-status');
   const submitBtn = document.getElementById('apply-submit');
+  const reminderEl = document.getElementById('payment-reminder');
 
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     submitBtn.disabled = true;
+    reminderEl.style.display = 'none';
     statusEl.className = 'form-status';
     statusEl.textContent = 'Submitting…';
 
@@ -192,8 +220,7 @@ title: Apply
 
     try {
       const photo_url = await uploadPhoto(document.getElementById('photo').files[0]);
-
-            const memberId = crypto.randomUUID();
+      const memberId = crypto.randomUUID();
 
       const { error: insertError } = await sb.from('members').insert({
         id: memberId,
@@ -220,20 +247,24 @@ title: Apply
           email: val('spouse_email'),
           photo_url: spouse_photo_url,
           status: 'pending',
-          spouse_of: inserted.id,
+          spouse_of: memberId,
         });
 
         if (spouseError) throw spouseError;
       }
 
       statusEl.className = 'form-status success';
-      statusEl.textContent = "Thank you! Your application has been received. Payment method: Airtel Money 097 777 0313 (Levi Zulu)";
+      statusEl.textContent = 'Thank you! Your application has been received and is pending. Please complete your payment using one of the methods below. Your membership will be activated once an admin has confirmed your payment.';
+      reminderEl.innerHTML = document.getElementById('payment-details').innerHTML;
+      reminderEl.style.display = 'block';
+      reminderEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
       form.reset();
       spouseFields.style.display = 'none';
       missionOtherField.style.display = 'none';
     } catch (err) {
       statusEl.className = 'form-status error';
       statusEl.textContent = 'Something went wrong: ' + err.message;
+    } finally {
       submitBtn.disabled = false;
     }
   });
