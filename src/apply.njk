@@ -193,7 +193,10 @@ title: Apply
     try {
       const photo_url = await uploadPhoto(document.getElementById('photo').files[0]);
 
-      const { data: inserted, error: insertError } = await sb.from('members').insert({
+            const memberId = crypto.randomUUID();
+
+      const { error: insertError } = await sb.from('members').insert({
+        id: memberId,
         surname: val('surname'),
         first_name: val('first_name'),
         diplomatic_mission: getMissionValue(),
@@ -202,7 +205,7 @@ title: Apply
         email: val('email'),
         photo_url,
         status: 'pending',
-      }).select().single();
+      });
 
       if (insertError) throw insertError;
 
