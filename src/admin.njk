@@ -570,7 +570,7 @@ title: Admin
     const { data: { session } } = await sb.auth.getSession();
 
     if (!session) {
-      gate.innerHTML = '<p>Please <a href="/login/">log in</a> as an admin.</p>';
+      gate.innerHTML = '<p>Please <a href="/login/?next=/admin/">log in</a> as an admin.</p>';
       return;
     }
 

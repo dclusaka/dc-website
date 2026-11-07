@@ -3,6 +3,7 @@ layout: layouts/base.njk
 title: Member Login
 ---
 <div id="logout-bar" style="display:none;text-align:right;padding:1rem clamp(1.25rem, 4vw, 3rem) 0;">
+  <a id="admin-link" href="/admin/" style="display:none;margin-right:1rem;font-size:0.9rem;color:#331648;">Admin panel</a>
   <button type="button" id="logout-btn" style="cursor:pointer;font-family:inherit;font-size:0.9rem;padding:0.5rem 1.1rem;background:none;color:#331648;border:1px solid #331648;">Log out</button>
 </div>
 <section class="page-simple page-wide">
@@ -94,6 +95,10 @@ title: Member Login
     document.getElementById('logout-btn').addEventListener('click', async () => {
       await sb.auth.signOut({ scope: 'local' });
       window.location.href = '/login/';
+    });
+
+    sb.rpc('is_admin').then(({ data: isAdmin }) => {
+      if (isAdmin) document.getElementById('admin-link').style.display = 'inline';
     });
 
     const [cardHtml, directoryHtml] = await Promise.all([

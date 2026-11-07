@@ -20,6 +20,10 @@ title: Login
   const statusEl = document.getElementById('login-status');
   const submitBtn = document.getElementById('login-submit');
 
+  // Where to land after clicking the emailed link. Only these pages are allowed.
+  const requestedNext = new URLSearchParams(window.location.search).get('next');
+  const landingPage = ['/admin/', '/members/'].includes(requestedNext) ? requestedNext : '/members/';
+
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     submitBtn.disabled = true;
@@ -30,7 +34,7 @@ title: Login
 
     const { error } = await sb.auth.signInWithOtp({
       email,
-      options: { emailRedirectTo: window.location.origin + '/members/' },
+      options: { emailRedirectTo: window.location.origin + landingPage },
     });
 
     if (error) {
