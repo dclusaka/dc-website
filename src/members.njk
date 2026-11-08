@@ -2,6 +2,28 @@
 layout: layouts/base.njk
 title: Member Login
 ---
+<style>
+  #members-gate .member-card {
+    background: #331648; color: #FBF8FC; border: 1px solid #4A2E5C; border-radius: 12px;
+    padding: 1.5rem; max-width: 26rem; display: flex; flex-wrap: wrap;
+    gap: 1.25rem 1.5rem; align-items: flex-start; box-shadow: 0 6px 18px rgba(51, 22, 72, 0.25);
+  }
+  #members-gate .member-card-club {
+    flex-basis: 100%; color: #C9A66B; font-size: 0.75rem; letter-spacing: 0.14em;
+    text-transform: uppercase; font-weight: 600;
+    border-bottom: 1px solid rgba(201, 166, 107, 0.4); padding-bottom: 0.6rem;
+  }
+  #members-gate .member-card-photo {
+    width: 6rem; height: 6rem; border-radius: 50%; object-fit: cover;
+    border: 2px solid #C9A66B; flex-shrink: 0;
+  }
+  #members-gate .member-card-name { color: #FBF8FC; }
+  #members-gate .card-status-active { color: #C9A66B; }
+  #members-gate .card-status-inactive { color: #FFB4A8; }
+  #members-gate .member-card-expiry,
+  #members-gate .member-card-hint { color: #D9CCE3; }
+  #members-gate .member-card-qr { background: #FFFFFF; padding: 8px; border-radius: 6px; width: 150px; height: 150px; }
+</style>
 <div id="logout-bar" style="display:none;text-align:right;padding:1rem clamp(1.25rem, 4vw, 3rem) 0;">
   <a id="admin-link" href="/admin/" style="display:none;margin-right:1rem;font-size:0.9rem;color:#331648;">Admin panel</a>
   <button type="button" id="logout-btn" style="cursor:pointer;font-family:inherit;font-size:0.9rem;padding:0.5rem 1.1rem;background:none;color:#331648;border:1px solid #331648;">Log out</button>
@@ -38,9 +60,10 @@ title: Member Login
 
     return `
       <div class="member-card" id="member-card-capture">
+        <div class="member-card-club">Diplomatic Club of Lusaka</div>
         ${data.photo_url
           ? `<img class="member-card-photo" src="${esc(data.photo_url)}" crossorigin="anonymous" alt="${esc(fullName)}">`
-          : `<div class="member-card-photo" style="display:flex;align-items:center;justify-content:center;background:#e4dcea;color:#331648;font-size:1.6rem;font-weight:600;">${esc((data.first_name || '').charAt(0) + (data.surname || '').charAt(0))}</div>`}
+          : `<div class="member-card-photo" style="display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,0.12);color:#C9A66B;font-size:1.6rem;font-weight:600;">${esc((data.first_name || '').charAt(0) + (data.surname || '').charAt(0))}</div>`}
         <div class="member-card-body">
           <p class="member-card-name">${esc(fullName)}</p>
           <p class="${statusClass}">${statusLabel}</p>
@@ -122,7 +145,7 @@ title: Member Login
 
         try {
           const cardEl = document.getElementById('member-card-capture');
-          const canvas = await html2canvas(cardEl, { useCORS: true, backgroundColor: '#FBF8FC', scale: 2 });
+          const canvas = await html2canvas(cardEl, { useCORS: true, backgroundColor: null, scale: 2 });
           const link = document.createElement('a');
           link.download = 'membership-card.png';
           link.href = canvas.toDataURL('image/png');
