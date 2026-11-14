@@ -4,13 +4,56 @@ title: About
 ---
 <section class="page-simple">
   <h1>About Us</h1>
-  <p>Founded in 2015, the Diplomatic Club of Lusaka is a welcoming international community dedicated to bringing diplomats and their families together 
-and helping them feel at home in Zambia.</p>
-<p>We provide a platform for newly arrived diplomats to connect with fellow members, build friendships, integrate into the local community, and gain 
-practical insights into life in Lusaka. Through social gatherings, cultural activities, shared experiences, and mutual support, we aim to make the 
-transition to life in Zambia more enjoyable and fulfilling.</p>
-<p>Beyond fostering friendship and connection, the Club also seeks to make a positive contribution to the wider Zambian community through charitable 
-initiatives and fundraising events.</p>
-<p>We warmly invite you to join us, build lasting connections, and become part of our international community in Lusaka.</p>
+  <p>Founded in 2015, the Diplomatic Club of Lusaka is a welcoming international community dedicated to bringing diplomats and their families together and helping them feel at home in Zambia.</p>
+  <p>We provide a platform for newly arrived diplomats to connect with fellow members, build friendships, integrate into the local community, and gain practical insights into life in Lusaka. Through social gatherings, cultural activities, shared experiences, and mutual support, we aim to make the transition to life in Zambia more enjoyable and fulfilling.</p>
+  <p>Beyond fostering friendship and connection, the Club also seeks to make a positive contribution to the wider Zambian community through charitable initiatives and fundraising events.</p>
+  <p>We warmly invite you to join us, build lasting connections, and become part of our international community in Lusaka.</p>
   <a class="button-primary" href="/apply/">Become a Member</a>
 </section>
+
+<section class="page-simple page-wide charity-projects-section">
+  <h2>Charity Projects</h2>
+  <p class="section-intro">Learn about the causes and community initiatives supported by the Diplomatic Club of Lusaka.</p>
+  <div id="charity-projects-list"><p>Loading charity projects…</p></div>
+</section>
+
+<script>
+  (async () => {
+    const container = document.getElementById('charity-projects-list');
+    const esc = (value) => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    const [{ data: projects, error }, { data: links }] = await Promise.all([
+      sb.from('charity_projects').select('id, title, description, beneficiary, display_order').eq('is_published', true).order('display_order', { ascending: true }).order('title', { ascending: true }),
+      sb.from('event_charity_projects').select('charity_project_id, events(title, event_date)')
+    ]);
+
+    if (error) {
+      container.innerHTML = '<p class="form-status error">Could not load charity projects.</p>';
+      return;
+    }
+    if (!projects?.length) {
+      container.innerHTML = '<p>Charity project information will be added here soon.</p>';
+      return;
+    }
+
+    const related = new Map();
+    (links || []).forEach(link => {
+      if (!link.events) return;
+      const list = related.get(link.charity_project_id) || [];
+      list.push(link.events);
+      related.set(link.charity_project_id, list);
+    });
+
+    container.innerHTML = `<div class="charity-project-grid">${projects.map(project => {
+      const events = related.get(project.id) || [];
+      const eventText = events.length
+        ? `<div class="project-related-events"><strong>Supporting events</strong><ul>${events.map(event => `<li>${esc(event.title)}${event.event_date ? ` — ${esc(new Date(event.event_date + 'T00:00:00').toLocaleDateString('en-GB', {day:'2-digit', month:'short', year:'numeric'}))}` : ''}</li>`).join('')}</ul></div>`
+        : '';
+      return `<article class="charity-project-card" id="project-${esc(project.id)}">
+        <h3>${esc(project.title)}</h3>
+        ${project.beneficiary ? `<p class="project-beneficiary"><strong>Beneficiary:</strong> ${esc(project.beneficiary)}</p>` : ''}
+        ${project.description ? `<p>${esc(project.description).replace(/\n/g, '<br>')}</p>` : ''}
+        ${eventText}
+      </article>`;
+    }).join('')}</div>`;
+  })();
+</script>

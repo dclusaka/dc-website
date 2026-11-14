@@ -4,50 +4,71 @@ title: Events
 ---
 <section class="page-simple page-wide">
   <h1>Events</h1>
-  <div id="events-list">
-    <p>Loading events…</p>
-  </div>
+  <div id="events-list"><p>Loading events…</p></div>
 </section>
 
 <script>
   (async () => {
     const container = document.getElementById('events-list');
-    const { data, error } = await sb
-      .from('events')
-      .select('title, event_date, time_label, location, description')
-      .order('event_date', { ascending: false, nullsFirst: true });
+    const esc = (value) => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    const [eventsResult, photosResult, linksResult] = await Promise.all([
+      sb.from('events').select('id, title, event_date, time_label, location, description').order('event_date', { ascending: false, nullsFirst: true }),
+      sb.from('event_photos').select('id, event_id, storage_path, caption, display_order').order('display_order', { ascending: true }),
+      sb.from('event_charity_projects').select('event_id, charity_projects(id, title)')
+    ]);
 
-    if (error) {
+    if (eventsResult.error) {
       container.innerHTML = '<p class="form-status error">Could not load events.</p>';
       return;
     }
 
-    const today = new Date().toISOString().slice(0, 10);
-    const upcoming = data.filter(e => !e.event_date || e.event_date >= today);
-    const past = data.filter(e => e.event_date && e.event_date < today).sort((a, b) => b.event_date.localeCompare(a.event_date));
+    const events = eventsResult.data || [];
+    const photosByEvent = new Map();
+    (photosResult.data || []).forEach(photo => {
+      const list = photosByEvent.get(photo.event_id) || [];
+      list.push(photo);
+      photosByEvent.set(photo.event_id, list);
+    });
+    const projectsByEvent = new Map();
+    (linksResult.data || []).forEach(link => {
+      if (!link.charity_projects) return;
+      const list = projectsByEvent.get(link.event_id) || [];
+      list.push(link.charity_projects);
+      projectsByEvent.set(link.event_id, list);
+    });
 
-    function renderEvent(e, isPast) {
-      const dateLabel = e.event_date
-        ? new Date(e.event_date + 'T00:00:00').toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+    const today = new Date().toISOString().slice(0, 10);
+    const upcoming = events.filter(event => !event.event_date || event.event_date >= today);
+    const past = events.filter(event => event.event_date && event.event_date < today).sort((a, b) => b.event_date.localeCompare(a.event_date));
+
+    function renderEvent(event, isPast) {
+      const dateLabel = event.event_date
+        ? new Date(event.event_date + 'T00:00:00').toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
         : 'Date TBD';
-      return `
-        <article class="event-card ${isPast ? 'event-card-past' : ''}">
-          <h3>${e.title}</h3>
-          <p class="event-meta">${dateLabel}${e.time_label ? ', ' + e.time_label : ''} · ${e.location || ''}</p>
-          ${e.description ? `<p class="event-note">${e.description}</p>` : ''}
-        </article>
-      `;
+      const projects = projectsByEvent.get(event.id) || [];
+      const projectLinks = projects.length
+        ? `<div class="event-charity-links"><strong>Supporting cause${projects.length > 1 ? 's' : ''}:</strong> ${projects.map(project => `<a href="/about/#project-${encodeURIComponent(project.id)}">${esc(project.title)}</a>`).join(' · ')}</div>`
+        : '';
+      const photos = photosByEvent.get(event.id) || [];
+      const gallery = photos.length
+        ? `<div class="event-gallery">${photos.map(photo => {
+            const url = sb.storage.from('event-photos').getPublicUrl(photo.storage_path).data.publicUrl;
+            return `<figure><a href="${esc(url)}" target="_blank" rel="noopener"><img src="${esc(url)}" alt="${esc(photo.caption || event.title)}" loading="lazy"></a>${photo.caption ? `<figcaption>${esc(photo.caption)}</figcaption>` : ''}</figure>`;
+          }).join('')}</div>`
+        : '';
+      return `<article class="event-card ${isPast ? 'event-card-past' : ''}">
+        <h3>${esc(event.title)}</h3>
+        <p class="event-meta">${dateLabel}${event.time_label ? ', ' + esc(event.time_label) : ''}${event.location ? ' · ' + esc(event.location) : ''}</p>
+        ${event.description ? `<p class="event-note">${esc(event.description).replace(/\n/g, '<br>')}</p>` : ''}
+        ${projectLinks}${gallery}
+      </article>`;
     }
 
     container.innerHTML = `
       <h2>Upcoming</h2>
-      <div class="event-list">
-        ${upcoming.length ? upcoming.map(e => renderEvent(e, false)).join('') : '<p>No upcoming events right now.</p>'}
-      </div>
+      <div class="event-list">${upcoming.length ? upcoming.map(event => renderEvent(event, false)).join('') : '<p>No upcoming events right now.</p>'}</div>
       <h2>Past Events</h2>
-      <div class="event-list">
-        ${past.map(e => renderEvent(e, true)).join('')}
-      </div>
+      <div class="event-list">${past.length ? past.map(event => renderEvent(event, true)).join('') : '<p>No past events listed yet.</p>'}</div>
     `;
   })();
 </script>

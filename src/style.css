@@ -374,9 +374,10 @@ img { max-width: 100%; display: block; }
 
 .member-card-photo {
   width: 6rem;
-  height: 6rem;
+  aspect-ratio: 4 / 5;
+  height: auto;
   object-fit: cover;
-  border-radius: 50%;
+  border-radius: 4px;
   flex-shrink: 0;
 }
 
