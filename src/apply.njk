@@ -8,6 +8,18 @@ title: Apply
   .payment-box h3 { font-size: 0.95rem; margin: 1rem 0 0.25rem; }
   .payment-box p { margin: 0.2rem 0; }
   .payment-box .payment-note { margin-top: 1rem; font-size: 0.9rem; color: #5B4F63; }
+  .photo-help { margin: .35rem 0 1rem; color: #6b6170; font-size: .88rem; }
+  .photo-crop-result img { display: block; width: 5rem; aspect-ratio: 4 / 5; object-fit: cover; border: 2px solid #C9A66B; border-radius: 4px; margin: .5rem 0 1rem; }
+  .photo-crop-modal[hidden] { display: none; }
+  .photo-crop-modal { position: fixed; inset: 0; z-index: 1000; display: grid; place-items: center; padding: 1rem; background: rgba(20, 12, 25, .78); }
+  .photo-crop-dialog { width: min(100%, 28rem); max-height: 95vh; overflow-y: auto; background: #FBF8FC; color: #331648; padding: 1.4rem; border-radius: 12px; box-shadow: 0 12px 40px rgba(0,0,0,.3); }
+  .photo-crop-dialog h2 { margin-top: 0; }
+  .photo-crop-frame { width: min(100%, 20rem); aspect-ratio: 4 / 5; margin: 1rem auto; overflow: hidden; background: #21152a; touch-action: none; }
+  #photo-crop-canvas { display: block; width: 100%; height: 100%; cursor: grab; touch-action: none; }
+  #photo-crop-canvas:active { cursor: grabbing; }
+  .photo-crop-actions { display: flex; justify-content: flex-end; gap: .75rem; margin-top: 1.25rem; }
+  .photo-crop-error { color: #a32626; min-height: 1.2em; }
+  @media (max-width: 480px) { .photo-crop-dialog { padding: 1rem; } .photo-crop-actions button { flex: 1; } }
 </style>
 
 <section class="page-simple">
@@ -129,6 +141,8 @@ title: Apply
 
     <label for="photo">Submit your headshot photo</label>
     <input type="file" id="photo" name="photo" accept="image/*" required>
+    <p class="photo-help">After selecting a photo, you can adjust the crop to fit the club's 4:5 portrait format.</p>
+    <div class="photo-crop-result" id="photo-crop-result" aria-live="polite"></div>
 
     <fieldset class="radio-group">
       <legend>Would you like to apply for your spouse too?</legend>
@@ -153,10 +167,29 @@ title: Apply
 
       <label for="spouse_photo">Spouse Headshot Photo</label>
       <input type="file" id="spouse_photo" name="spouse_photo" accept="image/*">
+      <p class="photo-help">The spouse photo can also be adjusted to the 4:5 portrait format.</p>
+      <div class="photo-crop-result" id="spouse-photo-crop-result" aria-live="polite"></div>
     </div>
 
     <button type="submit" id="apply-submit">Submit Application</button>
   </form>
+
+  <div class="photo-crop-modal" id="photo-crop-modal" hidden>
+    <div class="photo-crop-dialog" role="dialog" aria-modal="true" aria-labelledby="photo-crop-title">
+      <h2 id="photo-crop-title">Adjust your profile photo</h2>
+      <p>Move the photo inside the frame and adjust the zoom until you're happy with the 4:5 portrait crop.</p>
+      <div class="photo-crop-frame">
+        <canvas id="photo-crop-canvas" width="320" height="400" aria-label="Photo crop preview"></canvas>
+      </div>
+      <label for="photo-crop-zoom">Zoom</label>
+      <input type="range" id="photo-crop-zoom" min="1" max="3" step="0.01" value="1">
+      <div class="photo-crop-actions">
+        <button type="button" class="button-secondary" id="photo-crop-cancel">Cancel</button>
+        <button type="button" class="button-primary" id="photo-crop-confirm">Use This Photo</button>
+      </div>
+      <p class="photo-crop-error" id="photo-crop-error" role="alert"></p>
+    </div>
+  </div>
 
   <p class="form-status" id="apply-status"></p>
   <div class="payment-box" id="payment-reminder" style="display:none;"></div>
@@ -195,14 +228,149 @@ title: Apply
     });
   });
 
-  async function uploadPhoto(file) {
-    const resized = await resizeImageFile(file, 800, 0.82);
+  // Member photos are cropped by the applicant to a consistent 4:5 portrait
+  // before being resized and uploaded to the existing member-photos bucket.
+  const croppedPhotoBlobs = new Map();
+
+  async function uploadPhoto(file, inputId) {
+    const cropped = croppedPhotoBlobs.get(inputId);
+    if (!cropped) throw new Error('Please select and confirm a 4:5 crop for your photo.');
+    const resized = await resizeImageFile(cropped, 800, 0.82);
     const path = `${crypto.randomUUID()}.jpg`;
     const { error } = await sb.storage.from('member-photos').upload(path, resized, { contentType: 'image/jpeg' });
     if (error) throw error;
     const { data } = sb.storage.from('member-photos').getPublicUrl(path);
     return data.publicUrl;
   }
+
+  // Lightweight, dependency-free 4:5 crop tool. Drag to reposition and use
+  // the zoom slider; the final output is a 640 x 800 JPEG.
+  const cropModal = document.getElementById('photo-crop-modal');
+  const cropCanvas = document.getElementById('photo-crop-canvas');
+  const cropCtx = cropCanvas.getContext('2d');
+  const cropZoom = document.getElementById('photo-crop-zoom');
+  const cropError = document.getElementById('photo-crop-error');
+  const cropConfirm = document.getElementById('photo-crop-confirm');
+  const cropCancel = document.getElementById('photo-crop-cancel');
+  let cropImage = null;
+  let activePhotoInput = null;
+  let cropBaseWidth = 0;
+  let cropBaseHeight = 0;
+  let cropX = 0;
+  let cropY = 0;
+  let cropPointer = null;
+
+  function cropDimensions() {
+    const zoom = Number(cropZoom.value);
+    const width = cropBaseWidth / zoom;
+    const height = cropBaseHeight / zoom;
+    return { width, height };
+  }
+
+  function drawCropPreview() {
+    if (!cropImage) return;
+    const { width, height } = cropDimensions();
+    cropX = Math.max(0, Math.min(cropImage.naturalWidth - width, cropX));
+    cropY = Math.max(0, Math.min(cropImage.naturalHeight - height, cropY));
+    cropCtx.clearRect(0, 0, cropCanvas.width, cropCanvas.height);
+    cropCtx.drawImage(cropImage, cropX, cropY, width, height, 0, 0, cropCanvas.width, cropCanvas.height);
+  }
+
+  function closeCropper(clearSelection) {
+    cropModal.hidden = true;
+    if (clearSelection && activePhotoInput) {
+      activePhotoInput.value = '';
+      croppedPhotoBlobs.delete(activePhotoInput.id);
+      const result = document.getElementById(`${activePhotoInput.id}-crop-result`);
+      if (result) result.innerHTML = '';
+    }
+    cropImage = null;
+    activePhotoInput = null;
+  }
+
+  function openCropper(input) {
+    const file = input.files && input.files[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      input.value = '';
+      alert('Please choose an image file.');
+      return;
+    }
+    activePhotoInput = input;
+    cropError.textContent = '';
+    cropZoom.value = '1';
+    const reader = new FileReader();
+    reader.onload = () => {
+      cropImage = new Image();
+      cropImage.onload = () => {
+        const ratio = 4 / 5;
+        cropBaseWidth = Math.min(cropImage.naturalWidth, cropImage.naturalHeight * ratio);
+        cropBaseHeight = cropBaseWidth / ratio;
+        cropX = (cropImage.naturalWidth - cropBaseWidth) / 2;
+        cropY = (cropImage.naturalHeight - cropBaseHeight) / 2;
+        drawCropPreview();
+        cropModal.hidden = false;
+        cropConfirm.focus();
+      };
+      cropImage.onerror = () => { cropError.textContent = 'This image could not be opened. Please choose another photo.'; };
+      cropImage.src = reader.result;
+    };
+    reader.onerror = () => { cropError.textContent = 'This image could not be read. Please choose another photo.'; };
+    reader.readAsDataURL(file);
+  }
+
+  ['photo', 'spouse_photo'].forEach(id => {
+    document.getElementById(id).addEventListener('change', event => openCropper(event.currentTarget));
+  });
+
+  cropZoom.addEventListener('input', drawCropPreview);
+  cropCanvas.addEventListener('pointerdown', event => {
+    if (!cropImage) return;
+    cropPointer = { id: event.pointerId, x: event.clientX, y: event.clientY };
+    cropCanvas.setPointerCapture(event.pointerId);
+  });
+  cropCanvas.addEventListener('pointermove', event => {
+    if (!cropPointer || cropPointer.id !== event.pointerId || !cropImage) return;
+    const rect = cropCanvas.getBoundingClientRect();
+    const { width, height } = cropDimensions();
+    cropX -= (event.clientX - cropPointer.x) * (width / rect.width);
+    cropY -= (event.clientY - cropPointer.y) * (height / rect.height);
+    cropPointer.x = event.clientX;
+    cropPointer.y = event.clientY;
+    drawCropPreview();
+  });
+  ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(name => {
+    cropCanvas.addEventListener(name, () => { cropPointer = null; });
+  });
+
+  cropConfirm.addEventListener('click', () => {
+    if (!cropImage || !activePhotoInput) return;
+    const { width, height } = cropDimensions();
+    const output = document.createElement('canvas');
+    output.width = 640;
+    output.height = 800;
+    const ctx = output.getContext('2d');
+    ctx.drawImage(cropImage, cropX, cropY, width, height, 0, 0, output.width, output.height);
+    output.toBlob(blob => {
+      if (!blob) {
+        cropError.textContent = 'Could not prepare this photo. Please try again.';
+        return;
+      }
+      const inputId = activePhotoInput.id;
+      croppedPhotoBlobs.set(inputId, blob);
+      const result = document.getElementById(`${inputId}-crop-result`);
+      if (result) {
+        const previewUrl = URL.createObjectURL(blob);
+        result.innerHTML = `<p class="photo-help">Your 4:5 photo is ready:</p><img src="${previewUrl}" alt="Cropped profile photo">`;
+      }
+      closeCropper(false);
+    }, 'image/jpeg', 0.88);
+  });
+
+  cropCancel.addEventListener('click', () => closeCropper(true));
+  cropModal.addEventListener('click', event => {
+    if (event.target === cropModal) closeCropper(true);
+  });
 
   const form = document.getElementById('apply-form');
   const statusEl = document.getElementById('apply-status');
@@ -219,7 +387,7 @@ title: Apply
     const val = id => document.getElementById(id).value.trim();
 
     try {
-      const photo_url = await uploadPhoto(document.getElementById('photo').files[0]);
+      const photo_url = await uploadPhoto(document.getElementById('photo').files[0], 'photo');
       const memberId = crypto.randomUUID();
 
       const { error: insertError } = await sb.from('members').insert({
@@ -238,7 +406,7 @@ title: Apply
 
       if (getHasSpouseValue() === 'yes') {
         const spousePhotoFile = document.getElementById('spouse_photo').files[0];
-        const spouse_photo_url = spousePhotoFile ? await uploadPhoto(spousePhotoFile) : null;
+        const spouse_photo_url = spousePhotoFile ? await uploadPhoto(spousePhotoFile, 'spouse_photo') : null;
 
         const { error: spouseError } = await sb.from('members').insert({
           surname: val('spouse_surname'),
@@ -259,6 +427,9 @@ title: Apply
       reminderEl.style.display = 'block';
       reminderEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
       form.reset();
+      croppedPhotoBlobs.clear();
+      document.getElementById('photo-crop-result').innerHTML = '';
+      document.getElementById('spouse-photo-crop-result').innerHTML = '';
       spouseFields.style.display = 'none';
       missionOtherField.style.display = 'none';
     } catch (err) {

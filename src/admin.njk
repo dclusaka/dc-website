@@ -103,6 +103,26 @@ title: Admin
   <div id="admin-events-list"></div>
 </section>
 
+<section class="page-simple page-wide admin-wide" id="admin-charity-section" style="display:none;">
+  <h1>Manage Charity Projects</h1>
+  <form class="app-form" id="charity-form">
+    <input type="hidden" id="charity_id" value="">
+    <label for="charity_title">Project title</label>
+    <input type="text" id="charity_title" required>
+    <label for="charity_beneficiary">Beneficiary / organisation</label>
+    <input type="text" id="charity_beneficiary">
+    <label for="charity_description">Description</label>
+    <textarea id="charity_description" rows="5"></textarea>
+    <label for="charity_order">Display order (lower shows first)</label>
+    <input type="number" id="charity_order" value="1" min="0">
+    <label class="admin-checkbox-label"><input type="checkbox" id="charity_published" checked> Visible on the public website</label>
+    <button type="submit" id="charity-submit">Add Charity Project</button>
+    <button type="button" id="charity-cancel-edit" style="display:none;">Cancel Edit</button>
+  </form>
+  <p class="form-status" id="charity-status"></p>
+  <div id="admin-charity-list"></div>
+</section>
+
 <section class="page-simple page-wide admin-wide" id="admin-sponsors-section" style="display:none;">
   <h1>Manage Sponsors</h1>
 
@@ -322,7 +342,7 @@ title: Admin
     }
   });
 
-  // ---- Event management ----
+  // ---- Event management, charity links and photo galleries ----
   const eventForm = document.getElementById('event-form');
   const eventIdField = document.getElementById('event_id');
   const eventSubmitBtn = document.getElementById('event-submit');
@@ -336,74 +356,173 @@ title: Admin
     eventSubmitBtn.textContent = 'Add Event';
     eventCancelBtn.style.display = 'none';
   }
-
   eventCancelBtn.addEventListener('click', resetEventForm);
 
   async function loadEventsAdminList() {
-    const { data, error } = await sb
-      .from('events')
-      .select('id, title, event_date, time_label, location, description')
-      .order('event_date', { ascending: false, nullsFirst: true });
-
-    if (error) {
-      eventsListEl.innerHTML = '<p class="form-status error">Could not load events.</p>';
+    const [eventsResult, projectsResult, photosResult, linksResult] = await Promise.all([
+      sb.from('events').select('id, title, event_date, time_label, location, description').order('event_date', { ascending: false, nullsFirst: true }),
+      sb.from('charity_projects').select('id, title').order('title', { ascending: true }),
+      sb.from('event_photos').select('id, event_id, storage_path, caption, display_order').order('display_order', { ascending: true }),
+      sb.from('event_charity_projects').select('event_id, charity_project_id')
+    ]);
+    if (eventsResult.error || projectsResult.error || photosResult.error || linksResult.error) {
+      const err = eventsResult.error || projectsResult.error || photosResult.error || linksResult.error;
+      eventsListEl.innerHTML = `<p class="form-status error">Could not load event management data: ${esc(err.message)}</p>`;
       return;
     }
 
-    const rows = data.map(e => `
-      <tr data-id="${e.id}">
-        <td>${e.title}</td>
-        <td>${e.event_date || 'TBD'}</td>
-        <td>${e.location || ''}</td>
-        <td>
-          <button type="button" class="event-edit-btn">Edit</button>
-          <button type="button" class="event-delete-btn">Delete</button>
-        </td>
-      </tr>
-    `).join('');
-
-    eventsListEl.innerHTML = `
-      <table class="member-table">
-        <thead><tr><th>Title</th><th>Date</th><th>Location</th><th>Actions</th></tr></thead>
-        <tbody>${rows}</tbody>
-      </table>
-    `;
-
-    document.querySelectorAll('.event-edit-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const id = btn.closest('tr').dataset.id;
-        const ev = data.find(e => e.id === id);
-        eventIdField.value = ev.id;
-        document.getElementById('event_title').value = ev.title || '';
-        document.getElementById('event_date').value = ev.event_date || '';
-        document.getElementById('event_time_label').value = ev.time_label || '';
-        document.getElementById('event_location').value = ev.location || '';
-        document.getElementById('event_description').value = ev.description || '';
-        eventSubmitBtn.textContent = 'Save Changes';
-        eventCancelBtn.style.display = 'inline-block';
-        window.scrollTo({ top: eventForm.offsetTop - 20, behavior: 'smooth' });
-      });
+    const projects = projectsResult.data || [];
+    const photosByEvent = new Map();
+    (photosResult.data || []).forEach(photo => {
+      const list = photosByEvent.get(photo.event_id) || [];
+      list.push(photo);
+      photosByEvent.set(photo.event_id, list);
+    });
+    const linksByEvent = new Map();
+    (linksResult.data || []).forEach(link => {
+      const list = linksByEvent.get(link.event_id) || [];
+      list.push(link.charity_project_id);
+      linksByEvent.set(link.event_id, list);
     });
 
-    document.querySelectorAll('.event-delete-btn').forEach(btn => {
-      btn.addEventListener('click', async () => {
-        const id = btn.closest('tr').dataset.id;
-        if (!confirm('Delete this event?')) return;
-        const { error } = await sb.from('events').delete().eq('id', id);
-        if (error) {
-          alert('Could not delete: ' + error.message);
-        } else {
-          loadEventsAdminList();
+    eventsListEl.innerHTML = (eventsResult.data || []).map(event => {
+      const selectedProjects = linksByEvent.get(event.id) || [];
+      const projectOptions = projects.length
+        ? projects.map(project => `<label class="admin-inline-check"><input type="checkbox" class="event-project-check" value="${esc(project.id)}" ${selectedProjects.includes(project.id) ? 'checked' : ''}> ${esc(project.title)}</label>`).join('')
+        : '<p class="admin-muted">Add a charity project below before linking one to this event.</p>';
+      const photos = photosByEvent.get(event.id) || [];
+      const photoItems = photos.length ? photos.map(photo => {
+        const url = sb.storage.from('event-photos').getPublicUrl(photo.storage_path).data.publicUrl;
+        return `<figure class="admin-event-photo" data-photo-id="${esc(photo.id)}">
+          <img src="${esc(url)}" alt="${esc(photo.caption || event.title)}" loading="lazy">
+          <figcaption>${esc(photo.caption || 'No caption')}</figcaption>
+          <input type="text" class="event-photo-caption-edit" value="${esc(photo.caption || '')}" maxlength="200" aria-label="Photo caption">
+          <button type="button" class="event-photo-caption-save-btn">Save caption</button>
+          <button type="button" class="event-photo-delete-btn">Delete photo</button>
+        </figure>`;
+      }).join('') : '<p class="admin-muted">No photos uploaded for this event yet.</p>';
+      return `<article class="admin-event-card" data-event-id="${esc(event.id)}">
+        <div class="admin-event-heading"><div><h3>${esc(event.title)}</h3><p class="admin-muted">${esc(event.event_date || 'Date TBD')} · ${esc(event.location || 'Location not set')}</p></div>
+          <div class="admin-event-actions"><button type="button" class="event-edit-btn">Edit event</button><button type="button" class="event-delete-btn">Delete event</button></div>
+        </div>
+        <div class="admin-event-projects"><strong>Linked charity projects</strong><div class="admin-project-checkboxes">${projectOptions}</div><button type="button" class="event-project-save-btn">Save project links</button></div>
+        <div class="admin-event-gallery"><strong>Event photo gallery</strong><div class="admin-event-photo-grid">${photoItems}</div>
+          <label>Upload photos (multiple files allowed)<input type="file" class="event-photo-files" accept="image/jpeg,image/png,image/webp" multiple></label>
+          <label>Caption for these photos (optional)<input type="text" class="event-photo-caption" maxlength="200"></label>
+          <button type="button" class="event-photo-upload-btn">Upload photos</button>
+          <p class="form-status event-photo-status"></p>
+        </div>
+      </article>`;
+    }).join('') || '<p>No events have been added yet.</p>';
+
+    eventsListEl.querySelectorAll('.event-edit-btn').forEach(button => button.addEventListener('click', () => {
+      const card = button.closest('[data-event-id]');
+      const event = eventsResult.data.find(item => item.id === card.dataset.eventId);
+      eventIdField.value = event.id;
+      document.getElementById('event_title').value = event.title || '';
+      document.getElementById('event_date').value = event.event_date || '';
+      document.getElementById('event_time_label').value = event.time_label || '';
+      document.getElementById('event_location').value = event.location || '';
+      document.getElementById('event_description').value = event.description || '';
+      eventSubmitBtn.textContent = 'Save Changes';
+      eventCancelBtn.style.display = 'inline-block';
+      window.scrollTo({ top: eventForm.offsetTop - 20, behavior: 'smooth' });
+    }));
+
+    eventsListEl.querySelectorAll('.event-delete-btn').forEach(button => button.addEventListener('click', async () => {
+      const card = button.closest('[data-event-id]');
+      if (!confirm('Delete this event? Its linked photos and charity links will also be removed.')) return;
+      const { error } = await sb.from('events').delete().eq('id', card.dataset.eventId);
+      if (error) alert('Could not delete event: ' + error.message);
+      else loadEventsAdminList();
+    }));
+
+    eventsListEl.querySelectorAll('.event-project-save-btn').forEach(button => button.addEventListener('click', async () => {
+      const card = button.closest('[data-event-id]');
+      const eventId = card.dataset.eventId;
+      const selected = [...card.querySelectorAll('.event-project-check:checked')].map(input => input.value);
+      button.disabled = true;
+      try {
+        const { error: deleteError } = await sb.from('event_charity_projects').delete().eq('event_id', eventId);
+        if (deleteError) throw deleteError;
+        if (selected.length) {
+          const rows = selected.map(projectId => ({ event_id: eventId, charity_project_id: projectId }));
+          const { error: insertError } = await sb.from('event_charity_projects').insert(rows);
+          if (insertError) throw insertError;
         }
-      });
-    });
+        button.textContent = 'Saved';
+      } catch (error) {
+        alert('Could not save charity links: ' + error.message);
+      } finally {
+        button.disabled = false;
+      }
+    }));
+
+    eventsListEl.querySelectorAll('.event-photo-upload-btn').forEach(button => button.addEventListener('click', async () => {
+      const card = button.closest('[data-event-id]');
+      const filesInput = card.querySelector('.event-photo-files');
+      const files = [...(filesInput.files || [])];
+      const status = card.querySelector('.event-photo-status');
+      if (!files.length) { status.textContent = 'Choose at least one image first.'; return; }
+      if (files.some(file => !['image/jpeg', 'image/png', 'image/webp'].includes(file.type))) { status.textContent = 'Use JPEG, PNG or WebP images only.'; return; }
+      button.disabled = true;
+      status.className = 'form-status event-photo-status';
+      status.textContent = 'Uploading…';
+      const caption = card.querySelector('.event-photo-caption').value.trim() || null;
+      try {
+        for (const file of files) {
+          const resized = await resizeImageFile(file, 1600, 0.78, 'image/jpeg');
+          const path = `${card.dataset.eventId}/${crypto.randomUUID()}.jpg`;
+          const { error: uploadError } = await sb.storage.from('event-photos').upload(path, resized, { contentType: 'image/jpeg', upsert: false });
+          if (uploadError) throw uploadError;
+          const { error: rowError } = await sb.from('event_photos').insert({ event_id: card.dataset.eventId, storage_path: path, caption });
+          if (rowError) {
+            await sb.storage.from('event-photos').remove([path]);
+            throw rowError;
+          }
+        }
+        status.className = 'form-status success event-photo-status';
+        status.textContent = `${files.length} photo${files.length === 1 ? '' : 's'} uploaded.`;
+        filesInput.value = '';
+        card.querySelector('.event-photo-caption').value = '';
+        loadEventsAdminList();
+      } catch (error) {
+        status.className = 'form-status error event-photo-status';
+        status.textContent = 'Upload failed: ' + error.message;
+      } finally {
+        button.disabled = false;
+      }
+    }));
+
+    eventsListEl.querySelectorAll('.event-photo-caption-save-btn').forEach(button => button.addEventListener('click', async () => {
+      const figure = button.closest('[data-photo-id]');
+      const card = button.closest('[data-event-id]');
+      const photo = (photosByEvent.get(card.dataset.eventId) || []).find(item => item.id === figure.dataset.photoId);
+      const caption = figure.querySelector('.event-photo-caption-edit').value.trim() || null;
+      button.disabled = true;
+      const { error } = await sb.from('event_photos').update({ caption }).eq('id', photo.id);
+      if (error) alert('Could not update caption: ' + error.message);
+      else loadEventsAdminList();
+      button.disabled = false;
+    }));
+
+    eventsListEl.querySelectorAll('.event-photo-delete-btn').forEach(button => button.addEventListener('click', async () => {
+      const figure = button.closest('[data-photo-id]');
+      const card = button.closest('[data-event-id]');
+      const photo = (photosByEvent.get(card.dataset.eventId) || []).find(item => item.id === figure.dataset.photoId);
+      if (!confirm('Delete this event photo?')) return;
+      const { error: rowError } = await sb.from('event_photos').delete().eq('id', photo.id);
+      if (rowError) { alert('Could not delete photo record: ' + rowError.message); return; }
+      const { error: storageError } = await sb.storage.from('event-photos').remove([photo.storage_path]);
+      if (storageError) alert('The photo record was deleted, but the stored file could not be removed: ' + storageError.message);
+      loadEventsAdminList();
+    }));
   }
 
   eventForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     eventStatusEl.className = 'form-status';
     eventStatusEl.textContent = 'Saving…';
-
     const payload = {
       title: document.getElementById('event_title').value.trim(),
       event_date: document.getElementById('event_date').value || null,
@@ -411,12 +530,8 @@ title: Admin
       location: document.getElementById('event_location').value.trim() || null,
       description: document.getElementById('event_description').value.trim() || null,
     };
-
     const id = eventIdField.value;
-    const { error } = id
-      ? await sb.from('events').update(payload).eq('id', id)
-      : await sb.from('events').insert(payload);
-
+    const { error } = id ? await sb.from('events').update(payload).eq('id', id) : await sb.from('events').insert(payload);
     if (error) {
       eventStatusEl.className = 'form-status error';
       eventStatusEl.textContent = 'Something went wrong: ' + error.message;
@@ -426,6 +541,79 @@ title: Admin
       resetEventForm();
       loadEventsAdminList();
     }
+  });
+
+  // ---- Charity project management ----
+  const charityForm = document.getElementById('charity-form');
+  const charityIdField = document.getElementById('charity_id');
+  const charitySubmitBtn = document.getElementById('charity-submit');
+  const charityCancelBtn = document.getElementById('charity-cancel-edit');
+  const charityStatusEl = document.getElementById('charity-status');
+  const charityListEl = document.getElementById('admin-charity-list');
+
+  function resetCharityForm() {
+    charityForm.reset();
+    charityIdField.value = '';
+    document.getElementById('charity_order').value = 1;
+    document.getElementById('charity_published').checked = true;
+    charitySubmitBtn.textContent = 'Add Charity Project';
+    charityCancelBtn.style.display = 'none';
+  }
+  charityCancelBtn.addEventListener('click', resetCharityForm);
+
+  async function loadCharityAdminList() {
+    const { data, error } = await sb.from('charity_projects').select('id, title, beneficiary, description, is_published, display_order').order('display_order', { ascending: true });
+    if (error) { charityListEl.innerHTML = `<p class="form-status error">Could not load charity projects: ${esc(error.message)}</p>`; return; }
+    charityListEl.innerHTML = `<div class="admin-charity-list">${(data || []).map(project => `<article class="admin-charity-row" data-project-id="${esc(project.id)}">
+      <div><strong>${esc(project.title)}</strong><p class="admin-muted">${esc(project.beneficiary || 'No beneficiary specified')} · ${project.is_published ? 'Published' : 'Hidden'}</p></div>
+      <div><button type="button" class="charity-edit-btn">Edit</button> <button type="button" class="charity-delete-btn">Delete</button></div>
+    </article>`).join('') || '<p>No charity projects have been added yet.</p>'}</div>`;
+    charityListEl.querySelectorAll('.charity-edit-btn').forEach(button => button.addEventListener('click', () => {
+      const project = data.find(item => item.id === button.closest('[data-project-id]').dataset.projectId);
+      charityIdField.value = project.id;
+      document.getElementById('charity_title').value = project.title || '';
+      document.getElementById('charity_beneficiary').value = project.beneficiary || '';
+      document.getElementById('charity_description').value = project.description || '';
+      document.getElementById('charity_order').value = project.display_order ?? 0;
+      document.getElementById('charity_published').checked = project.is_published;
+      charitySubmitBtn.textContent = 'Save Changes';
+      charityCancelBtn.style.display = 'inline-block';
+      window.scrollTo({ top: charityForm.offsetTop - 20, behavior: 'smooth' });
+    }));
+    charityListEl.querySelectorAll('.charity-delete-btn').forEach(button => button.addEventListener('click', async () => {
+      const id = button.closest('[data-project-id]').dataset.projectId;
+      if (!confirm('Delete this charity project? Its event links will also be removed.')) return;
+      const { error } = await sb.from('charity_projects').delete().eq('id', id);
+      if (error) alert('Could not delete project: ' + error.message);
+      else { loadCharityAdminList(); loadEventsAdminList(); }
+    }));
+  }
+
+  charityForm.addEventListener('submit', async event => {
+    event.preventDefault();
+    charitySubmitBtn.disabled = true;
+    charityStatusEl.className = 'form-status';
+    charityStatusEl.textContent = 'Saving…';
+    const payload = {
+      title: document.getElementById('charity_title').value.trim(),
+      beneficiary: document.getElementById('charity_beneficiary').value.trim() || null,
+      description: document.getElementById('charity_description').value.trim() || null,
+      display_order: parseInt(document.getElementById('charity_order').value, 10) || 0,
+      is_published: document.getElementById('charity_published').checked
+    };
+    const id = charityIdField.value;
+    const { error } = id ? await sb.from('charity_projects').update(payload).eq('id', id) : await sb.from('charity_projects').insert(payload);
+    if (error) {
+      charityStatusEl.className = 'form-status error';
+      charityStatusEl.textContent = 'Could not save project: ' + error.message;
+    } else {
+      charityStatusEl.className = 'form-status success';
+      charityStatusEl.textContent = id ? 'Charity project updated.' : 'Charity project added.';
+      resetCharityForm();
+      loadCharityAdminList();
+      loadEventsAdminList();
+    }
+    charitySubmitBtn.disabled = false;
   });
 
   // ---- Sponsor management ----
@@ -567,6 +755,7 @@ title: Admin
     const gate = document.getElementById('admin-gate');
     const eventsSection = document.getElementById('admin-events-section');
     const sponsorsSection = document.getElementById('admin-sponsors-section');
+    const charitySection = document.getElementById('admin-charity-section');
     const { data: { session } } = await sb.auth.getSession();
 
     if (!session) {
@@ -590,6 +779,8 @@ title: Admin
     loadAdminTable();
     eventsSection.style.display = 'block';
     loadEventsAdminList();
+    charitySection.style.display = 'block';
+    loadCharityAdminList();
     sponsorsSection.style.display = 'block';
     loadSponsorsAdminList();
   })();
