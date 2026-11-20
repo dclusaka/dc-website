@@ -2,7 +2,7 @@
 layout: layouts/base.njk
 title: About
 ---
-<section class="page-simple">
+<section class="page-simple about-intro">
   <h1>About Us</h1>
   <p>Founded in 2015, the Diplomatic Club of Lusaka is a welcoming international community dedicated to bringing diplomats and their families together and helping them feel at home in Zambia.</p>
   <p>We provide a platform for newly arrived diplomats to connect with fellow members, build friendships, integrate into the local community, and gain practical insights into life in Lusaka. Through social gatherings, cultural activities, shared experiences, and mutual support, we aim to make the transition to life in Zambia more enjoyable and fulfilling.</p>
@@ -55,5 +55,14 @@ title: About
         ${eventText}
       </article>`;
     }).join('')}</div>`;
+
+    // The project cards are rendered asynchronously, after the browser's initial hash navigation.
+    // Scroll to the requested project once its element exists in the page.
+    const targetId = decodeURIComponent(window.location.hash.slice(1));
+    if (targetId) {
+      requestAnimationFrame(() => {
+        document.getElementById(targetId)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+    }
   })();
 </script>
