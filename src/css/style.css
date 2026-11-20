@@ -533,6 +533,7 @@ img { max-width: 100%; display: block; }
 
 
 /* Charity projects and event photo galleries */
+.about-intro { padding-bottom: 1rem; }
 .charity-projects-section { padding-top: 1rem; }
 .section-intro { color: var(--ink-soft); margin-top: -0.25rem; }
 .charity-project-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr)); gap: 1.1rem; margin-top: 1.25rem; }
